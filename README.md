@@ -1,4 +1,4 @@
-# DAYA IA
+# Daya-ai
 
 > **Vision**: A single place where all your AI tools work together, get smarter over time, and never make you jump from screen to screen.
 
