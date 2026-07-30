@@ -47,30 +47,29 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
-  title: 'Daya AI — Chatea, investiga y programa con IA',
-  description: 'Chat, documentos, imágenes, Cuadernos y un agente de código en tu terminal. Todo en una sola cuenta, y Daya elige el modelo adecuado para cada tarea.',
-  icons: { icon: '/favicon.png', apple: '/favicon.png' },
+  title: {
+    default: 'Daya IA — Plataforma Multimodelo',
+    template: '%s · Daya IA',
+  },
+  description: 'Chat, documentos, imágenes, Cuadernos y un agente de código en tu terminal. Daya enruta cada tarea al mejor modelo. Todo en una sola cuenta.',
+  icons: {
+    icon: [{ url: '/favicon.png', sizes: '32x32' }, { url: '/favicon.png', sizes: '48x48' }],
+    apple: [{ url: '/favicon.png', sizes: '180x180' }],
+    other: [{ rel: 'icon', url: '/favicon.png', sizes: '192x192' }],
+  },
   keywords: ['IA', 'inteligencia artificial', 'AI', 'chat', 'notebooklm', 'cuadernos', 'agente de código', 'Daya Code', 'asistente'],
   authors: [{ name: 'DAYA AI' }],
   openGraph: {
-    title: 'Daya AI — Chatea, investiga y programa con IA',
-    description: 'Toda la IA que necesitas, por menos: chat, documentos, imágenes, Cuadernos y un agente de código, en una sola cuenta.',
+    title: 'Daya IA — Plataforma Multimodelo',
+    description: 'Chat, documentos, imágenes, Cuadernos y un agente de código. Daya enruta cada tarea al mejor modelo. Todo en una sola cuenta.',
     type: 'website',
-    siteName: 'Daya AI',
-    // Tarjeta de marca 1200x630 (antes era el logo suelto de 880x880 sobre
-    // nada). Se intentó generarla con next/og (opengraph-image.tsx, la
-    // convención de archivo de Next) pero @vercel/og trae un bug real en
-    // Windows: revienta con "Invalid URL" dentro de su propio bundle
-    // (node_modules/next/dist/compiled/@vercel/og), sin relación con
-    // nuestro código — así que se renderizó una sola vez con Playwright
-    // (mismo motor que graba los videos del arcade) y se sirve como PNG
-    // estático: cero riesgo de runtime, cien por cien verificable en local.
+    siteName: 'Daya IA',
     images: [{ url: '/og-image.png', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Daya AI — Chatea, investiga y programa con IA',
-    description: 'Toda la IA que necesitas, por menos: chat, documentos, imágenes, Cuadernos y un agente de código, en una sola cuenta.',
+    title: 'Daya IA — Plataforma Multimodelo',
+    description: 'Chat, documentos, imágenes, Cuadernos y un agente de código. Daya enruta cada tarea al mejor modelo. Todo en una sola cuenta.',
     images: ['/og-image.png'],
   },
   robots: { index: true, follow: true },
