@@ -48,8 +48,8 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: {
-    default: 'daya-ai',
-    template: '%s · daya-ai',
+    default: 'Daya-ai',
+    template: '%s · Daya-ai',
   },
   description: 'Chat, documentos, imágenes, Cuadernos y un agente de código en tu terminal. Daya enruta cada tarea al mejor modelo. Todo en una sola cuenta.',
   icons: {
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
   keywords: ['IA', 'inteligencia artificial', 'AI', 'chat', 'notebooklm', 'cuadernos', 'agente de código', 'Daya Code', 'asistente'],
   authors: [{ name: 'DAYA AI' }],
   openGraph: {
-    title: 'daya-ai',
+    title: 'Daya-ai',
     description: 'Chat, documentos, imágenes, Cuadernos y un agente de código. Daya enruta cada tarea al mejor modelo. Todo en una sola cuenta.',
     type: 'website',
     siteName: 'Daya IA',
@@ -68,7 +68,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'daya-ai',
+    title: 'Daya-ai',
     description: 'Chat, documentos, imágenes, Cuadernos y un agente de código. Daya enruta cada tarea al mejor modelo. Todo en una sola cuenta.',
     images: ['/og-image.png'],
   },
