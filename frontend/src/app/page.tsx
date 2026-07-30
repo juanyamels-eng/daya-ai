@@ -314,10 +314,11 @@ function Landing() {
 
       {/* Nav mínima */}
       <header className={`lx-nav${scrolled ? ' is-scrolled' : ''}`} role="banner">
-        <Link href="/" className="lx-logo" aria-label={nav('logoAriaLabel')}>
-          <img src="/logo.png" alt="" aria-hidden="true" />
-          <span>Daya</span>
-        </Link>
+          <Link href="/" className="lx-logo" aria-label={nav('logoAriaLabel')}>
+            <img src="/logo.png" alt="" aria-hidden="true" />
+            <span>Daya</span>
+            <span className="lx-os-badge">Open source</span>
+          </Link>
         <div className="lx-nav-right">
           <button className="lx-nav-link" onClick={() => setShowPricing(true)}>{nav('pricing')}</button>
           <span className="lx-lang"><LangSelector /></span>
@@ -444,11 +445,11 @@ function Landing() {
           </div>
         </section>
 
-        {/* 8 · Open source — GitHub CTA */}
+        {/* 8 · Built in the open — GitHub CTA */}
         <section className="lx-section lx-reveal">
           <div className="lx-sec-head">
-            <h2 className="lx-sec-title">Open source</h2>
-            <p className="lx-sec-lead">Daya is free and open source. Star it on GitHub, contribute, or fork it.</p>
+            <h2 className="lx-sec-title">Built in the open</h2>
+            <p className="lx-sec-lead">Free, open source, MIT licensed. The code is yours — star it, fork it, ship it.</p>
           </div>
           <div className="lx-gh-cta">
             <a href="https://github.com/juanyamels-eng/daya-ai" target="_blank" rel="noopener noreferrer" className="lx-btn lx-btn-lg">
@@ -672,6 +673,7 @@ function LandingStyles() {
       .lx-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--lx-text); }
       .lx-logo img { width: 26px; height: 26px; object-fit: contain; filter: invert(1) brightness(1.15); }
       .lx-logo span { font-size: 0.98rem; font-weight: 600; letter-spacing: -0.04em; }
+      .lx-os-badge { margin-left: 8px; font-size: 0.55rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.08); color: var(--lx-text-3); border: 1px solid var(--lx-border); }
       .lx-nav-right { display: flex; align-items: center; gap: 8px; }
       .lx-nav-link { display: inline-flex; align-items: center; padding: 9px 14px; border-radius: 999px;
         background: transparent; border: none; cursor: pointer; text-decoration: none;
