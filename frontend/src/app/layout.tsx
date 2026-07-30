@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import CookieConsent from '../components/CookieConsent'
+import { Providers } from '../components/Providers'
 import { Inter, Instrument_Serif, IBM_Plex_Mono } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
@@ -89,8 +90,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             entra por primera vez) decide prefers-color-scheme. */}
         <script dangerouslySetInnerHTML={{ __html: `try{var s=(JSON.parse(localStorage.getItem('daya-auth')||'{}')||{}).state||{};var p=s.themePref||s.theme||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark')}catch(e){}` }} />
         <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
-          <CookieConsent />
+          <Providers>
+            {children}
+            <CookieConsent />
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>
