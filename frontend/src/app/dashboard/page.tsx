@@ -5,6 +5,7 @@ import { useAuthStore, useChatStore, ACTIVE_CONV_KEY } from '../../store'
 import { authAPI, chatAPI } from '../../lib/api'
 import Sidebar from '../../components/layout/Sidebar'
 import ChatWindow from '../../components/chat/ChatWindow'
+import Onboarding from '../../components/Onboarding'
 import { ErrorBoundary } from '../../components/common/ErrorBoundary'
 import Splash from '../../components/Splash'
 
@@ -62,6 +63,7 @@ export default function DashboardPage() {
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)' }}>
       <ErrorBoundary label="Sidebar"><Sidebar /></ErrorBoundary>
       <ErrorBoundary label="Chat"><ChatWindow /></ErrorBoundary>
+      <Onboarding />
     </div>
   )
 }

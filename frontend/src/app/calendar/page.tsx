@@ -1,9 +1,13 @@
 'use client'
 import { useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../store'
 import Sidebar from '../../components/layout/Sidebar'
-import CalendarWorkspace from '../../components/calendar/CalendarWorkspace'
+
+const CalendarWorkspace = dynamic(() => import('../../components/calendar/CalendarWorkspace'), {
+  loading: () => <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Cargando calendario…</div>,
+})
 
 export default function CalendarPage() {
   const { isAuthenticated, hasHydrated } = useAuthStore()

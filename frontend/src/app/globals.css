@@ -777,3 +777,10 @@ html.dark .daya-composer {
   .dk-pages::-webkit-scrollbar { display: none; }
   .dk-pages { scrollbar-width: none; }
 }
+
+/* ── Scrollbar custom (dark mode) ── */
+html.dark ::-webkit-scrollbar { width: 8px; height: 8px; }
+html.dark ::-webkit-scrollbar-track { background: transparent; }
+html.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+html.dark { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }

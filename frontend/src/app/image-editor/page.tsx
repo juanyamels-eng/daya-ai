@@ -1,9 +1,13 @@
 'use client'
 import { useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../../store'
 import Sidebar from '../../components/layout/Sidebar'
-import ImageEditorWorkspace from '../../components/imageeditor/ImageEditorWorkspace'
+
+const ImageEditorWorkspace = dynamic(() => import('../../components/imageeditor/ImageEditorWorkspace'), {
+  loading: () => <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Cargando editor…</div>,
+})
 
 export default function ImageEditorPage() {
   const { isAuthenticated, hasHydrated } = useAuthStore()

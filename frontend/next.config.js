@@ -1,5 +1,4 @@
 const createNextIntlPlugin = require('next-intl/plugin')
-
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 
 /** @type {import('next').NextConfig} */
@@ -11,8 +10,6 @@ const nextConfig = {
   poweredByHeader: false,
 
   webpack: (config) => {
-    // konva intenta resolver el paquete OPCIONAL 'canvas' (render en Node). En el
-    // navegador no se usa, así que lo ignoramos para que el build no falle.
     config.resolve.alias = { ...config.resolve.alias, canvas: false }
     return config
   },
@@ -32,4 +29,11 @@ const nextConfig = {
   },
 }
 
-module.exports = withNextIntl(nextConfig)
+const plugins = [withNextIntl]
+
+if (process.env.ANALYZE === 'true') {
+  const withBundleAnalyzer = require('@next/bundle-analyzer')({ enabled: true })
+  plugins.push(withBundleAnalyzer)
+}
+
+module.exports = plugins.reduce((config, plugin) => plugin(config), nextConfig)
