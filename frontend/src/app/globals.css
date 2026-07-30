@@ -1,0 +1,779 @@
+/* Fuentes cargadas vía next/font en layout.tsx (Inter + Instrument Serif).
+   Para cambiar la sans-serif a Satoshi (Fontshare):
+   1. Elimina el import de Inter en layout.tsx
+   2. Añade: import localFont from 'next/font/local' y carga Satoshi desde /public/fonts/
+      O usa: @import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,600,700,800&display=swap') aquí
+   3. Cambia --font-body a: 'Satoshi', system-ui, sans-serif */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   Daya IA — Tema claro único, limpio y legible
+   ============================================ */
+
+/* ============================================
+   Tema oscuro — se activa añadiendo `.dark` al elemento <html>
+   ============================================ */
+html.dark {
+  /* Oscuro FRONTERA ("Calma precisa"): negro con matiz violeta y profundidad por
+     capas. Neutros con sesgo hacia el acento (elegidos, no grises anónimos) y un
+     acento que brilla. La app tiene luz propia, no es un folleto plano. */
+  --bg-base:      #131314;
+  --bg-surface:   #1e1e1f;
+  --bg-elevated:  #282a2c;
+  --bg-overlay:   #35363a;
+  --bg-subtle:    #444746;
+
+  --border-default: rgba(255,255,255,0.08);
+  /* El filo de la landing. Era rgba(255,255,255,0.14) y no se veía: los paneles
+     flotaban sin separarse del lienzo. Este es el mismo #444746 que dibuja las
+     tarjetas y la nav de la portada. */
+  --border-strong:  #444746;
+  --border-accent:  rgba(95,99,104,0.34);
+
+  /* Violeta de marca, el de la aurora de la landing. Token NUEVO y aparte de
+     --accent-500 a propósito: aquí solo marca lo que está activo, sin repintar
+     de golpe cada botón de la app. */
+  --brand: #6d5cff;
+
+  --text-primary:   #e3e3e3;
+  --text-secondary: #c4c7c5;
+  --text-tertiary:  #9aa0a6;
+
+  --accent-500:  #5f6368;
+  --accent-400:  #80868b;
+  --accent-glow: rgba(95,99,104,0.22);
+  --shadow-accent: 0 0 0 1px rgba(95,99,104,0.42), 0 6px 26px rgba(95,99,104,0.30);
+
+  --red:   #f87171;
+  --green: #43d39e;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.35);
+  --shadow-md: 0 10px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.45);
+  --shadow-lg: 0 30px 90px rgba(0,0,0,0.82), 0 10px 24px rgba(0,0,0,0.55);
+
+  --logo-filter: invert(1) brightness(1.1);
+  color-scheme: dark;
+}
+/* Selección de texto en violeta de marca (antes gris anónimo) */
+html.dark ::selection { background: rgba(95,99,104,0.36); color: #fff; }
+html.dark input:focus, html.dark textarea:focus, html.dark select:focus {
+  box-shadow: none !important;
+}
+/* Burbuja del usuario: pastilla con tinte violeta sutil (misma alma que el acento) */
+html.dark .daya-user-bubble { border-color: color-mix(in srgb, var(--accent-500) 32%, transparent) !important; }
+
+/* ── Dark mode: el acento es violeta (#6d5cff), así que los botones con fondo de   ── */
+/* acento llevan texto BLANCO para contrastar (antes el acento era casi blanco y      */
+/* necesitaban texto oscuro). El día seleccionado del calendario ya usa color:white.  */
+html.dark button[style*="accent-500"],
+html.dark a[style*="accent-500"] {
+  color: #ffffff !important;
+}
+
+:root {
+  /* UNA sola voz en todo el producto: la monoespaciada de marca (IBM Plex Mono),
+     la misma de la landing. Antes la portada hablaba en mono y la app en Inter,
+     así que entrar era cambiar de producto.
+
+     OJO al calibrar: la mono es ~20% más ancha por carácter. Por eso el cuerpo
+     base baja a 15.5px y los titulares aprietan el tracking (ver más abajo); con
+     los valores de Inter, los títulos largos se desmontan. */
+  --font-body: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-display: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Se conserva la sans cargada para lo que necesite ancho variable de verdad. */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* Claro nítido con matiz lavanda: blanco casi puro + superficies con sesgo violeta
+     (elegidas, no un gris frío) y el mismo violeta de marca que el modo oscuro. */
+  --bg-base:      #ffffff;
+  --bg-surface:   #f8f9fa;
+  --bg-elevated:  #f1f3f4;
+  --bg-overlay:   #e8eaed;
+  --bg-subtle:    #dadce0;
+
+  --border-default: rgba(60,64,67,0.12);
+  --border-strong:  rgba(60,64,67,0.26);
+  --border-accent:  rgba(95,99,104,0.30);
+
+  /* Mismo violeta de marca; en claro se oscurece un punto para que el filo se
+     lea sobre blanco. */
+  --brand: #5a49d6;
+
+  --text-primary:   #14131c;
+  --text-secondary: #45414f;
+  --text-tertiary:  #6c6780;
+
+  --accent-500:  #5f6368;
+  --accent-400:  #5f6368;
+  --accent-glow: rgba(95,99,104,0.10);
+  --shadow-accent: 0 0 0 1px rgba(95,99,104,0.24), 0 4px 18px rgba(95,99,104,0.16);
+
+  --red:   #dc2626;
+  --green: #16a34a;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.09), 0 2px 4px rgba(0,0,0,0.05);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.06);
+
+  --logo-filter: none;
+}
+
+/* Los titulares, calibrados para la mono: peso firme y tracking MUY apretado
+   (-0.045em, el de la landing). A -0.02em, con una fuente un 20% más ancha por
+   carácter, un título de dos líneas se desmonta. !important porque compite con
+   el font-weight que esos estilos inline traen de cuando eran serif. */
+[style*="--font-display"] {
+  font-weight: 600 !important;
+  letter-spacing: -0.045em !important;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* 15.5px en vez de los 16 del navegador: compensa que la mono ocupa más ancho
+   por carácter, así que todas las medidas en rem de la app encogen a la vez y
+   las líneas siguen cabiendo donde cabían. */
+html { scroll-behavior: smooth; font-size: 15.5px; }
+html, body { overflow-x: hidden; max-width: 100%; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1.6;
+  font-size: 16px;
+}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+button, input, textarea, select, optgroup { font-family: inherit; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-subtle); border-radius: 99px; transition: background 0.2s; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+* { scrollbar-width: thin; scrollbar-color: var(--bg-subtle) transparent; }
+
+/* Aquí hubo una regla que ESCONDÍA la barra de la lista de conversaciones, para
+   que su pulgar no cayera pegado al filo del panel formando dos líneas
+   paralelas. Salió mal: sin barra no había forma de saber que la lista seguía
+   hacia abajo. Ahora la barra se ve y lo que se separa del filo es la lista, con
+   un margen derecho (ver Sidebar.tsx). Si vuelve el problema de las dos líneas,
+   la solución es más margen, no esconder la barra. */
+
+.daya-logo-box { background: transparent; }
+
+input, textarea, select {
+  transition: box-shadow 0.18s ease, border-color 0.18s ease;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: none !important;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--text-tertiary);
+  opacity: 0.7;
+}
+
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+button:disabled,
+button[disabled],
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+::selection { background: rgba(95,99,104,0.20); }
+
+/* ============================================
+   Buscar dentro del chat (Ctrl+F) — CSS Custom Highlight API.
+   Pinta sobre el texto ya renderizado sin insertar nodos, así que no interfiere
+   con React. `daya-find` son todos los aciertos; `daya-find-on`, el actual.
+   ============================================ */
+::highlight(daya-find)    { background: rgba(250,204,21,0.34); color: inherit; }
+::highlight(daya-find-on) { background: #facc15; color: #14131c; }
+html.dark ::highlight(daya-find)    { background: rgba(250,204,21,0.26); }
+html.dark ::highlight(daya-find-on) { background: #eab308; color: #131314; }
+/* Navegadores sin la API: el mensaje destino da un destello para no dejar al
+   usuario adivinando adónde ha saltado. */
+@keyframes dayaFindFlash {
+  0%, 100% { background: transparent; }
+  25%      { background: var(--accent-glow); }
+}
+.daya-find-flash { animation: dayaFindFlash 1.1s ease-out; border-radius: 12px; }
+
+/* ============================================
+   ANIMACIONES BASE
+   ============================================ */
+@keyframes fadeUp    { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
+@keyframes fadeIn    { from { opacity:0 } to { opacity:1 } }
+@keyframes modalPop  { from { opacity:0; transform:translateY(14px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+@keyframes slideDown { from { opacity:0; transform:translateY(-6px) } to { opacity:1; transform:translateY(0) } }
+@keyframes spin      { to { transform:rotate(360deg) } }
+@keyframes pulse     { 0%,100%{opacity:1} 50%{opacity:.45} }
+@keyframes micPulse  { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.08)} }
+@keyframes thinkBar  { 0%,100%{height:4px;opacity:.2} 50%{height:16px;opacity:.8} }
+@keyframes typingBounce {
+  0%,100% { transform:translateY(0);   opacity:0.28; }
+  35%     { transform:translateY(-5px); opacity:1; }
+  60%     { transform:translateY(-2px); opacity:0.75; }
+}
+@keyframes statusPulse { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,0.45)} 50%{box-shadow:0 0 0 5px rgba(34,197,94,0)} }
+@keyframes sidebarExpand { from { width:64px } to { width:270px } }
+@keyframes sidebarCollapse { from { width:270px } to { width:64px } }
+@keyframes drawerSlide { from { opacity:0; transform:translateX(-10px) } to { opacity:1; transform:translateX(0) } }
+
+/* ============================================
+   Daya — Biblioteca de animaciones
+   Sutiles, elegantes, con física de resorte.
+   ============================================ */
+
+/* Entrada suave desde abajo (tarjetas, modales, mensajes) */
+@keyframes dayaRise {
+  from { opacity:0; transform:translateY(10px) scale(0.98); }
+  to   { opacity:1; transform:translateY(0)    scale(1);    }
+}
+
+/* Entrada lateral (items de lista en cascada) */
+@keyframes dayaSlideIn { from { opacity:0; transform:translateX(-8px) } to { opacity:1; transform:translateX(0) } }
+
+/* Brillo que recorre un elemento (skeletons, carga) */
+@keyframes dayaShimmer { 0% { background-position:-200% 0 } 100% { background-position:200% 0 } }
+
+/* Pulso de opacidad + escala suave (placeholders, logos de espera) */
+@keyframes dayaBreathe {
+  0%,100% { opacity:0.45; transform:scale(0.96); }
+  50%     { opacity:1;    transform:scale(1);    }
+}
+
+/* Scale-in para dropdowns y popovers */
+@keyframes dayaScaleIn {
+  from { opacity:0; transform:scale(0.94) translateY(-4px); }
+  to   { opacity:1; transform:scale(1)    translateY(0);    }
+}
+
+/* Pop-in elástico para chips, badges, notificaciones */
+@keyframes dayaPopIn {
+  0%  { opacity:0; transform:scale(0.85); }
+  55% { transform:scale(1.05); }
+  100%{ opacity:1; transform:scale(1); }
+}
+
+/* Anillo de foco que se expande y desvanece */
+@keyframes dayaRing { 0% { box-shadow:0 0 0 0 rgba(0,0,0,0.2) } 100% { box-shadow:0 0 0 10px rgba(0,0,0,0) } }
+
+/* Subrayado que crece desde la izquierda */
+@keyframes dayaUnderline { from { transform:scaleX(0) } to { transform:scaleX(1) } }
+
+/* === Clases utilitarias de animación === */
+.anim-rise     { animation: dayaRise     0.34s cubic-bezier(0.16,1,0.3,1) both; }
+.anim-slide-in { animation: dayaSlideIn  0.28s cubic-bezier(0.16,1,0.3,1) both; }
+.anim-fade     { animation: fadeIn       0.3s  ease both; }
+.anim-breathe  { animation: dayaBreathe  1.8s  ease-in-out infinite; }
+.anim-scale-in { animation: dayaScaleIn  0.2s  cubic-bezier(0.16,1,0.3,1) both; }
+.anim-pop-in   { animation: dayaPopIn    0.32s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* Cascada: retardo incremental a hijos */
+.stagger > * { animation: dayaRise 0.36s cubic-bezier(0.16,1,0.3,1) both; }
+.stagger > *:nth-child(1){animation-delay:.02s}
+.stagger > *:nth-child(2){animation-delay:.06s}
+.stagger > *:nth-child(3){animation-delay:.10s}
+.stagger > *:nth-child(4){animation-delay:.14s}
+.stagger > *:nth-child(5){animation-delay:.18s}
+.stagger > *:nth-child(6){animation-delay:.22s}
+.stagger > *:nth-child(7){animation-delay:.26s}
+.stagger > *:nth-child(8){animation-delay:.30s}
+
+/* ── Studio (editor): microinteracciones y consistencia ──────────────────────
+   Se aplica SOLO dentro de .dk-root y solo sobre propiedades que el editor no
+   fija inline (transition, transform, filter, focus), así que da "sensación
+   premium" (hover/active suaves, foco de acento) SIN tocar los estilos inline
+   ni romper el layout. Respeta prefers-reduced-motion. */
+.dk-root button,
+.dk-root [role="button"],
+.dk-root a,
+.dk-root select,
+.dk-root input,
+.dk-root textarea {
+  transition: transform .12s cubic-bezier(0.16,1,0.3,1), box-shadow .18s ease,
+              background-color .15s ease, border-color .15s ease, color .15s ease,
+              opacity .15s ease, filter .15s ease;
+}
+.dk-root button:not(:disabled):hover,
+.dk-root [role="button"]:not([aria-disabled="true"]):hover {
+  filter: brightness(1.07);
+}
+.dk-root button:not(:disabled):active,
+.dk-root [role="button"]:not([aria-disabled="true"]):active {
+  transform: scale(.96);
+}
+.dk-root button:disabled { cursor: not-allowed; opacity: .5; }
+.dk-root :is(button, a, [role="button"]):focus-visible,
+.dk-root :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* Campos de texto: foco con anillo de acento suave (consistente en todo el editor) */
+.dk-root :is(input, select, textarea):focus {
+  border-color: var(--accent-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-500) 18%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dk-root *, .dk-root *::before, .dk-root *::after {
+    transition: none !important; animation-duration: .01ms !important;
+  }
+}
+
+/* Skeleton de carga monocromático */
+.daya-skeleton {
+  background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-overlay) 50%, var(--bg-elevated) 75%);
+  background-size: 200% 100%;
+  animation: dayaShimmer 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+/* Hover lift: subida + sombra en capas */
+.daya-lift { transition: transform 0.22s cubic-bezier(0.16,1,0.3,1), box-shadow 0.22s ease; }
+.daya-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
+}
+html.dark .daya-lift:hover {
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5), 0 3px 8px rgba(0,0,0,0.35);
+}
+
+/* Glass morphism — úsalo en dropdowns/modales sobre fondo desenfocado */
+.daya-glass {
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+}
+html.dark .daya-glass {
+  background: rgba(20,20,24,0.8) !important;
+}
+
+/* Respeta preferencia de menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   Prose — texto legible para respuestas Daya
+   ============================================ */
+/* La ÚNICA excepción a la monoespaciada: el texto de las respuestas va en Inter.
+   La app entera habla en mono porque es la voz de la marca, pero una respuesta
+   larga se lee de arriba abajo durante minutos, y ahí la mono cansa: todos los
+   caracteres ocupan lo mismo, así que las palabras pierden silueta y el ojo deja
+   de reconocerlas de un vistazo. En un rótulo eso es carácter; en tres párrafos
+   es fatiga. El código de dentro sigue en mono, como debe ser (ver abajo). */
+.prose-daya {
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
+  line-height: 1.72;
+  color: var(--text-primary);
+}
+.prose-daya > * + * { margin-top: 0.8rem; }
+.prose-daya h1,.prose-daya h2,.prose-daya h3,.prose-daya h4 {
+  font-weight: 700; color: var(--text-primary);
+  letter-spacing: -0.025em; line-height: 1.28;
+}
+.prose-daya h1 { font-size: 1.45rem; margin: 24px 0 10px; }
+.prose-daya h2 { font-size: 1.25rem; margin: 24px 0 10px; }
+.prose-daya h3 { font-size: 1.1rem; margin: 22px 0 8px; }
+.prose-daya h4 { font-size: 1rem; margin: 20px 0 8px; color: var(--text-primary); }
+.prose-daya h1:first-child,.prose-daya h2:first-child,.prose-daya h3:first-child,.prose-daya h4:first-child { margin-top: 0; }
+.prose-daya p { color: var(--text-secondary); margin-bottom: 14px; line-height: 1.75; }
+.prose-daya strong { color: var(--text-primary); font-weight: 650; }
+.prose-daya em { font-style: italic; color: var(--text-secondary); }
+.prose-daya mark { background: var(--bg-overlay); color: var(--text-primary); padding: 1px 5px; border-radius: 4px; }
+/* El código sí va en mono, y en la MONO DE LA CASA: aquí había una lista suelta
+   ('JetBrains Mono','Fira Code') que no está cargada en ninguna parte, así que
+   caía al monospace del sistema y el código se veía con otra letra distinta de
+   la del resto del producto. */
+.prose-daya code {
+  font-family: var(--font-mono);
+  font-size: 0.84em; background: var(--bg-elevated);
+  color: var(--text-primary); padding: 2px 6px; border-radius: 5px;
+  border: 1px solid var(--border-default);
+}
+.prose-daya pre {
+  background: var(--bg-elevated); border: 1px solid var(--border-default);
+  border-radius: 10px; padding: 16px 18px; overflow-x: auto; margin: 0.9rem 0;
+}
+.prose-daya pre code { background: none; padding: 0; border: none; font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; }
+/* Tailwind preflight pone list-style:none — hay que restaurarlo o las listas
+   del chat se ven como párrafos indentados sin números ni viñetas. */
+.prose-daya ul,.prose-daya ol { padding-left: 24px; color: var(--text-secondary); margin: 8px 0 16px; }
+.prose-daya ul { list-style: disc; }
+.prose-daya ol { list-style: decimal; }
+.prose-daya ul ul { list-style: circle; }
+.prose-daya ol ol { list-style: lower-alpha; }
+.prose-daya li { margin: 6px 0; padding-left: 0.25rem; line-height: 1.75; }
+.prose-daya li::marker { color: var(--text-tertiary); font-weight: 600; }
+.prose-daya blockquote {
+  border-left: 3px solid var(--border-strong, var(--border-default)); padding: 0.3rem 0 0.3rem 1.1rem;
+  color: var(--text-secondary); margin: 0.9rem 0; background: var(--bg-surface);
+  border-radius: 0 6px 6px 0; font-style: italic;
+}
+.prose-daya img { max-width: min(420px, 100%); height: auto; display: block; border-radius: 12px; border: 1px solid var(--border-default); box-shadow: 0 8px 28px rgba(0,0,0,0.14); margin: 0.6rem 0; cursor: zoom-in; }
+.prose-daya del { text-decoration: line-through; color: var(--text-tertiary); }
+.prose-daya ins { text-decoration: underline; text-underline-offset: 2px; color: var(--text-primary); }
+.prose-daya kbd { font-family: var(--font-mono); font-size: 0.8em; background: var(--bg-elevated); border: 1px solid var(--border-default); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; color: var(--text-secondary); }
+.prose-daya li > ul,.prose-daya li > ol { margin: 0.3rem 0 0.1rem; }
+.prose-daya a { color: var(--accent-500); text-decoration: underline; text-underline-offset: 2px; font-weight: 600; }
+.prose-daya table { width: 100%; border-collapse: collapse; margin: 0.9rem 0; font-size: 0.9rem; }
+.prose-daya th,.prose-daya td { border: 1px solid var(--border-default); padding: 9px 13px; text-align: left; }
+.prose-daya th { background: var(--bg-elevated); font-weight: 700; color: var(--text-primary); }
+.prose-daya td { color: var(--text-secondary); }
+.prose-daya tr:nth-child(even) td { background: var(--bg-surface); }
+.prose-daya hr { border: none; border-top: 1px solid var(--border-default); margin: 1.2rem 0; }
+
+/* Bloque plegable de razonamiento (modo Profundo) — integrado y limpio, sin recuadro ni rayas */
+.daya-reasoning { margin: 0 0 10px; }
+.daya-reasoning > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; padding: 3px 0; font-size: 0.76rem; font-weight: 600; color: var(--text-tertiary); user-select: none; transition: color 0.15s; }
+.daya-reasoning > summary::-webkit-details-marker { display: none; }
+.daya-reasoning > summary:hover { color: var(--text-secondary); }
+.daya-reasoning .daya-chevron { transition: transform 0.2s ease; opacity: 0.7; }
+.daya-reasoning[open] .daya-chevron { transform: rotate(180deg); }
+.daya-reasoning-body { margin-top: 4px; padding: 0 0 0 20px; font-size: 0.82rem; line-height: 1.62; color: var(--text-tertiary); white-space: pre-wrap; word-break: break-word; max-height: 340px; overflow-y: auto; font-family: var(--font-body); }
+
+/* Botones: transición unificada + feedback táctil más satisfactorio */
+button {
+  transition: opacity 0.15s, transform 0.12s cubic-bezier(0.16,1,0.3,1), background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+button:active { transform: scale(0.96); }
+
+/* ============================================
+   Markdown renderizado (Editor, vistas previas)
+   ============================================ */
+.markdown-body { color: var(--text-primary); line-height: 1.7; font-size: 0.95rem; }
+.markdown-body > *:first-child { margin-top: 0; }
+.markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+  font-family: var(--font-display); font-weight: 650; line-height: 1.25;
+  color: var(--text-primary); margin: 1.4em 0 0.5em; letter-spacing: -0.02em;
+}
+.markdown-body h1 { font-size: 1.9rem; }
+.markdown-body h2 { font-size: 1.5rem; }
+.markdown-body h3 { font-size: 1.22rem; }
+.markdown-body h4 { font-size: 1.05rem; font-family: var(--font-body); font-weight: 700; }
+.markdown-body p { margin: 0 0 1em; }
+.markdown-body ul, .markdown-body ol { margin: 0 0 1em; padding-left: 1.5em; }
+.markdown-body li { margin: 0.3em 0; }
+.markdown-body li::marker { color: var(--text-tertiary); }
+.markdown-body a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 2px; }
+.markdown-body strong { font-weight: 700; color: var(--text-primary); }
+.markdown-body em { font-style: italic; }
+.markdown-body blockquote {
+  margin: 0 0 1em; padding: 0.4em 1em; border-left: 3px solid var(--border-strong);
+  color: var(--text-secondary); background: var(--bg-surface); border-radius: 0 8px 8px 0;
+}
+.markdown-body code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.86em;
+  background: var(--bg-elevated); padding: 0.15em 0.4em; border-radius: 5px;
+}
+.markdown-body pre {
+  background: var(--bg-elevated); padding: 14px 16px; border-radius: 10px;
+  overflow-x: auto; margin: 0 0 1em; border: 1px solid var(--border-default);
+}
+.markdown-body pre code { background: none; padding: 0; font-size: 0.85em; }
+.markdown-body table { width: 100%; border-collapse: collapse; margin: 0 0 1em; font-size: 0.9rem; }
+.markdown-body th, .markdown-body td { border: 1px solid var(--border-default); padding: 8px 11px; text-align: left; }
+.markdown-body th { background: var(--bg-surface); font-weight: 700; }
+.markdown-body hr { border: none; border-top: 1px solid var(--border-default); margin: 1.6em 0; }
+.markdown-body img { max-width: 100%; border-radius: 10px; }
+
+/* ============================================
+   Composer del chat — la pieza central del producto.
+   En reposo: presencia sutil (elevado en oscuro). Al enfocar: borde de acento,
+   anillo de glow violeta y una levitación de 1px — el toque premium.
+   ============================================ */
+.daya-composer {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 18px;
+  padding: 13px 14px 11px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease, box-shadow 0.25s cubic-bezier(0.16,1,0.3,1),
+              background 0.2s ease, transform 0.25s cubic-bezier(0.16,1,0.3,1);
+}
+html.dark .daya-composer {
+  background: var(--bg-elevated);
+  border-color: rgba(255,255,255,0.10);
+}
+.daya-composer--focused {
+  border-color: color-mix(in srgb, var(--accent-500) 45%, transparent);
+  box-shadow: 0 0 0 3px var(--accent-glow), var(--shadow-md);
+}
+@media (prefers-reduced-motion: reduce) {
+  .daya-composer, .daya-composer--focused { transform: none; }
+}
+
+/* Entrada de pantalla: rise suave */
+.daya-page { animation: dayaRise 0.3s cubic-bezier(0.16,1,0.3,1) both; }
+
+/* Barra superior del Studio al cambiar herramienta */
+@keyframes studioBarIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Nav item activo */
+.daya-nav-active {
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+  box-shadow: inset 0 0 0 1px var(--border-default);
+}
+.daya-nav-active .daya-nav-icon { color: var(--text-primary) !important; }
+
+/* Indicador de conversación activa */
+.daya-conv-active {
+  background: var(--bg-elevated) !important;
+}
+/* El filo de lo activo va en violeta de marca, no en blanco: es el único sitio
+   del panel donde aparece color, así que el ojo encuentra dónde estás sin
+   tener que leer. */
+.daya-conv-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--brand);
+  opacity: 0;
+  transition: opacity 0.22s cubic-bezier(0.16,1,0.3,1);
+}
+.daya-conv-active::before {
+  opacity: 1;
+}
+
+/* Caret de escritura en streaming */
+@keyframes dayaCaret { 0%,100%{opacity:1} 45%{opacity:0} 55%{opacity:0} }
+.daya-caret {
+  display: inline-block; width: 2px; height: 0.9em;
+  background: var(--text-secondary); border-radius: 1px;
+  vertical-align: text-bottom; margin-left: 2px;
+  animation: dayaCaret 0.88s ease-in-out infinite;
+}
+
+/* Pulso del logo mientras carga */
+@keyframes dayaPulse { 0%,100%{opacity:0.65;transform:scale(0.95)} 50%{opacity:1;transform:scale(1)} }
+
+/* ============================================
+   Móvil: espacio para el botón hamburguesa
+   ============================================ */
+@media (max-width: 767px) {
+  .daya-page > div:first-child { padding-left: 56px !important; }
+  .daya-page h1 { font-size: 1.45rem !important; }
+}
+
+/* ============================================
+   Acciones de mensaje: revelar al hover con slide-up suave
+   ============================================ */
+.daya-msg-actions {
+  opacity: 0;
+  transform: translateY(4px) scale(0.96);
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.16,1,0.3,1);
+}
+.daya-msg:hover .daya-msg-actions {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.daya-msg-actions:focus-within { opacity: 1; transform: translateY(0) scale(1); }
+@media (hover: none) { .daya-msg-actions { opacity: 1; transform: none; } }
+
+/* Stagger en botones de acciones */
+.daya-msg:hover .daya-msg-actions > button:nth-child(1) { transition-delay: 0s }
+.daya-msg:hover .daya-msg-actions > button:nth-child(2) { transition-delay: 0.025s }
+.daya-msg:hover .daya-msg-actions > button:nth-child(3) { transition-delay: 0.05s }
+.daya-msg:hover .daya-msg-actions > button:nth-child(4) { transition-delay: 0.07s }
+.daya-msg:hover .daya-msg-actions > button:nth-child(5) { transition-delay: 0.09s }
+.daya-msg:hover .daya-msg-actions > button:nth-child(6) { transition-delay: 0.11s }
+
+/* ============================================
+   Pulido móvil general
+   ============================================ */
+@media (max-width: 767px) {
+  .daya-page { overflow-x: hidden; }
+  .daya-page > div { padding-left: 16px; padding-right: 16px; }
+  .daya-page > div:first-child { padding-left: 56px !important; }
+  img, video, canvas { max-width: 100%; }
+}
+
+@media (max-width: 767px) {
+  .daya-page h1 { font-size: 1.3rem !important; }
+  .daya-modal, .daya-sheet, .lxa-card { max-width: 100% !important; }
+  input, textarea, select { font-size: 16px !important; }
+  .daya-grid-2, .daya-grid-3 { grid-template-columns: 1fr !important; }
+  .editor-sheet { min-height: 280px; }
+  .daya-menu-right { right: 8px !important; left: auto !important; max-width: calc(100vw - 16px); }
+}
+@media (hover: none) and (pointer: coarse) {
+  button, a { -webkit-tap-highlight-color: transparent; }
+}
+
+@media (max-width: 767px) {
+  .settings-outer { padding: 20px 16px !important; gap: 0 !important; }
+  .settings-body { flex-direction: column !important; gap: 20px !important; }
+  .settings-nav { width: 100% !important; }
+  .settings-nav nav { position: static !important; flex-direction: row !important; flex-wrap: wrap !important; gap: 6px !important; }
+  .settings-nav nav button { border-left: none !important; }
+
+  .studio-home { padding: 28px 16px !important; }
+
+  .chat-empty { padding: 24px 18px !important; }
+}
+
+@media (max-width: 767px) {
+  .tool-label { display: none; }
+}
+
+/* ============================================
+   Transición de página (via template.tsx)
+   ============================================ */
+/* OJO con el fill-mode: `both` deja aplicado el fotograma final PARA SIEMPRE,
+   y ese fotograma incluye un transform. Un transform en un ancestro —aunque sea
+   la identidad, translateY(0) scale(1)— crea contexto de contención y ROMPE
+   todos los `position: fixed` de dentro: dejan de anclarse a la ventana y pasan
+   a anclarse a este div. Como template.tsx envuelve TODAS las páginas, eso
+   rompía cualquier modal, menú o aviso fijo de la app. Se veía clarísimo en el
+   modal de precios: el overlay medía 5604px en vez del alto de la ventana,
+   quedaba 2285px por encima de la vista y, con el scroll del body bloqueado, la
+   pantalla se quedaba en negro.
+   `backwards` mantiene el estado inicial antes de empezar (sin parpadeo) pero
+   NO deja nada aplicado al terminar: el transform desaparece y los fixed
+   vuelven a funcionar. */
+.pg-in {
+  animation: pgFadeIn 0.22s cubic-bezier(0.16,1,0.3,1) backwards;
+}
+@keyframes pgFadeIn {
+  from { opacity: 0; transform: translateY(5px) scale(0.998); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);     }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-in { animation: none; }
+}
+
+/* Diseño en móvil */
+@media (max-width: 767px) {
+  .design-body { flex-direction: column !important; }
+  .design-canvas-wrap { padding: 12px !important; }
+  .design-panel { width: 100% !important; border-left: none !important; border-top: 1px solid var(--border-default) !important; max-height: 42vh; }
+}
+
+@media (max-width: 600px) {
+  .studio-tab-label { display: none; }
+  .studio-bar { gap: 8px !important; padding: 10px 12px !important; }
+}
+
+/* Generadores del hub (imagen, post, código…): comparten un layout de 2 columnas
+   de escritorio (panel de ~300px + resultado). En móvil se apilan en vertical y
+   el panel de ajustes pasa a ancho completo, con scroll de toda la pantalla. */
+@media (max-width: 767px) {
+  .gen-host { overflow-y: auto !important; overflow-x: hidden; }
+  /* Solo los generadores (no la portada del hub, que se excluye por su clase). */
+  .gen-host > div:not(.studio-home-root) { flex-direction: column !important; overflow: visible !important; height: auto !important; min-height: 100%; }
+  .gen-host > div:not(.studio-home-root) > div:first-child {
+    width: 100% !important;
+    flex-shrink: 1 !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-default) !important;
+    overflow: visible !important;
+  }
+  .gen-host > div:not(.studio-home-root) > div:first-child > div { overflow: visible !important; }
+}
+
+.design-body { position: relative; }
+@media (max-width: 767px) {
+  .design-body { flex-direction: row !important; }
+  .design-rail { width: 58px !important; }
+  .design-rail span { font-size: 0.58rem !important; }
+  .design-panel-left { position: absolute !important; left: 58px; top: 0; bottom: 0; z-index: 25; width: 70vw !important; max-width: 280px; box-shadow: 8px 0 30px rgba(0,0,0,0.18); }
+  .design-canvas-wrap { padding: 10px !important; }
+  .design-panel { position: absolute !important; left: 0; right: 0; bottom: 0; width: 100% !important; max-height: 44vh; border-left: none !important; border-top: 1px solid var(--border-default) !important; z-index: 25; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
+}
+
+/* ============================================
+   Editor Konva de Daya (studio-konva) en móvil
+   La barra de herramientas se hace una tira con scroll horizontal (no se apila
+   rota); los paneles laterales fijos pasan a ser hojas superpuestas sobre el
+   lienzo para no aplastarlo. Primera pasada estructural — la edición táctil
+   precisa (arrastrar asas) sigue siendo mejor en pantalla grande.
+   ============================================ */
+@media (max-width: 767px) {
+  /* Contenedor de referencia para las hojas superpuestas (sobre el lienzo,
+     por encima de la barra de páginas que queda fuera de este contenedor). */
+  .dk-body { position: relative !important; }
+  .dk-toolbar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 7px 10px !important;
+    gap: 4px !important;
+  }
+  .dk-toolbar::-webkit-scrollbar { display: none; }
+  .dk-toolbar { scrollbar-width: none; }
+  /* La marca se encoge, pero NO desaparece: desde que el logo es el enlace a
+     Daya, es la salida del Studio. Ocultarla entera dejaba el movil sin ninguna.
+     Cae el texto —"Daya" y el rotulo "Studio"—, se queda el logo. */
+  .dk-brand-name, .dk-brand-tag { display: none !important; }
+  .dk-brand { padding: 4px !important; margin: 0 !important; }
+  /* El título del diseño no debe robar toda la barra */
+  .dk-toolbar > input { max-width: 130px; flex: 0 0 auto !important; }
+
+  /* Panel de propiedades y de capas → hojas superpuestas, no columnas fijas */
+  .dk-panel-right {
+    position: absolute !important;
+    left: 0; right: 0; bottom: 0;
+    width: 100% !important;
+    max-height: 52vh;
+    border-left: none !important;
+    border-top: 1px solid var(--border-default) !important;
+    z-index: 30;
+    box-shadow: 0 -10px 34px rgba(0,0,0,0.22);
+    border-radius: 16px 16px 0 0;
+  }
+  .dk-panel-left {
+    position: absolute !important;
+    left: 0; top: 0; bottom: 0;
+    width: min(78vw, 300px) !important;
+    z-index: 30;
+    box-shadow: 10px 0 34px rgba(0,0,0,0.22);
+  }
+  /* Panel del Asistente IA → hoja inferior a pantalla casi completa */
+  .dk-assist {
+    position: absolute !important;
+    left: 0; right: 0; bottom: 0;
+    width: 100% !important;
+    height: 72vh !important;
+    z-index: 40;
+    border-left: none !important;
+    border-top: 1px solid var(--border-default) !important;
+    box-shadow: 0 -10px 34px rgba(0,0,0,0.26);
+    border-radius: 16px 16px 0 0;
+  }
+  /* La tira de páginas también hace scroll horizontal */
+  .dk-pages {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dk-pages::-webkit-scrollbar { display: none; }
+  .dk-pages { scrollbar-width: none; }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "daya-code",
+  "version": "3.1.0",
+  "description": "DAYA Code — agente de programación en tu terminal. Corre en tu máquina; el cerebro vive en DAYA (daya-ai.com).",
+  "keywords": ["ai", "agent", "cli", "coding-agent", "daya", "terminal"],
+  "homepage": "https://daya-ai.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daya-ai/daya-ia.git",
+    "directory": "cli"
+  },
+  "author": "DAYA AI",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "daya-code": "daya-code.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "daya-code.mjs",
+    "README.md"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,420 @@
+// DAYA IA - Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String
+  passwordHash  String?
+  emailVerified Boolean   @default(false)
+  verifyToken   String?
+  verifyExpires DateTime?
+  avatarUrl     String?
+  plan          Plan      @default(FREE)
+  stripeCustomerId String? @unique
+  planActivatedAt DateTime?
+  planExpiresAt   DateTime?
+  lastChargeId    String?
+  messagesUsed  Int       @default(0)
+  messagesLimit Int       @default(20)
+  imagesUsed    Int       @default(0)
+  searchesUsed  Int       @default(0)
+  studioUsed    Int       @default(0)
+  documentsUsed Int       @default(0)
+  usageResetAt    DateTime?
+  resetToken    String?
+  resetExpires  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  conversations   Conversation[]
+  memories        Memory[]
+  profile         UserProfile?
+  generatedImages GeneratedImage[]
+  designs         Design[]
+  brandKit        BrandKit?
+  whatsappLink    WhatsAppLink?
+}
+
+model UserProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profession  String?
+  interests   String[]
+  language    String   @default("es")
+  aiPersona   String   @default("daya") // nombre de la IA personal asignada
+  tone        String?  // estilo de respuesta: formal, neutral, casual
+  responseLength String? // brief, balanced, detailed
+  avatarUrl   String?
+  updatedAt   DateTime @updatedAt
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String    @default("Nueva conversación")
+  model     String    @default("claude-3-5-sonnet")
+  mode      ChatMode  @default(SINGLE)
+  pinned    Boolean   @default(false)
+  messages  Message[]
+  shared    SharedConversation?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId, updatedAt(sort: Desc)])  // lista de chats por usuario, más reciente primero
+  @@index([userId, pinned])                 // filtro de conversaciones fijadas
+}
+
+// Conversación publicada por enlace: cualquiera con el slug la LEE, sin cuenta y
+// sin poder escribir. Tabla aparte (y no una columna en Conversation) para poder
+// dejar de compartir con un simple borrado, sin tocar la conversación, y para
+// saber cuándo se publicó. Una conversación tiene como mucho un enlace vivo.
+model SharedConversation {
+  id             String       @id @default(uuid())
+  slug           String       @unique
+  conversationId String       @unique
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  createdAt      DateTime     @default(now())
+
+  @@index([userId])
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           Role
+  content        String
+  model          String?
+  tokens         Int?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])  // historial de mensajes por conversación (la query más frecuente)
+}
+
+model Memory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   // el hecho recordado
+  category  String   @default("general") // trabajo, personal, preferencias
+  embedding Float[]  // vector para búsqueda semántica
+  createdAt DateTime @default(now())
+}
+
+enum Plan {
+  FREE
+  BETA
+  PRO
+  TEAM
+}
+
+enum ChatMode {
+  SINGLE    // un modelo
+  COUNCIL   // múltiples IAs debaten
+  BATTLE    // dos IAs compiten
+}
+
+enum Role {
+  user
+  assistant
+  system
+}
+
+// Vínculo entre un número de WhatsApp y una cuenta de DAYA.
+// Un usuario ↔ un número (userId y phone son únicos). `code` es un token temporal
+// que el usuario envía por WhatsApp para verificar que ese número es suyo.
+model WhatsAppLink {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone       String?   @unique   // E.164 sin '+', null hasta verificar
+  verified    Boolean   @default(false)
+  code        String?   @unique   // código de vinculación (p. ej. "DAYA-4F9K")
+  codeExpires DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([phone])
+}
+
+// ============================================
+// DAYA IA - Modelos secretos de entrenamiento
+// ============================================
+
+model TrainingData {
+  id           String   @id @default(uuid())
+  userId       String
+  userMessage  String
+  aiResponse   String
+  category     String   @default("general")
+  quality      Float    @default(0.5)
+  userFeedback Int?     // 1 = positivo, -1 = negativo
+  source       String   @default("chat")
+  usedInTraining Boolean @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model DayaInsight {
+  id        String   @id @default(uuid())
+  type      String   // top_category, instruction_update, daily_stats, internet_knowledge
+  data      String   // JSON con los datos del insight
+  date      DateTime @default(now())
+}
+
+model DayaSystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model LibraryDocument {
+  id        String   @id @default(uuid())
+  userId    String
+  fileName  String
+  fileType  String
+  content   String
+  size      Int      @default(0)
+  category  String   @default("docs")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// CUADERNOS (feature: notebooks) — investigación anclada a fuentes, estilo
+// NotebookLM: cada cuaderno agrupa fuentes (documentos de la Biblioteca, URLs,
+// texto pegado) y el chat responde SOLO con ese material, citando [n].
+// ============================================
+model Notebook {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String   @default("Cuaderno sin título")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model NotebookSource {
+  id         String   @id @default(uuid())
+  notebookId String
+  userId     String
+  type       String   // document (Biblioteca) | url | text
+  title      String
+  content    String   @default("")  // texto extraído (url/text); vacío para document
+  docId      String?  // LibraryDocument de origen (type=document)
+  createdAt  DateTime @default(now())
+
+  @@index([notebookId])
+  @@index([userId])
+}
+
+// ============================================
+// NOTAS Y TAREAS (feature: notes)
+// Capacidad nueva: notas rápidas y lista de tareas con recordatorio opcional.
+// ============================================
+model Note {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String   @default("")
+  content   String   @default("")
+  color     String   @default("default") // default, amber, green, blue, rose
+  pinned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Task {
+  id        String    @id @default(uuid())
+  userId    String
+  title     String
+  done      Boolean   @default(false)
+  priority  String    @default("normal") // low, normal, high
+  dueDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
+// CALENDARIO (feature: calendar) — local-first
+// Eventos guardados en la propia base de datos. Exportable a .ics estándar.
+// ============================================
+model CalendarEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  notes     String   @default("")
+  start     DateTime
+  end       DateTime?
+  allDay    Boolean  @default(false)
+  color     String   @default("default")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
+// EMAIL (feature: email) — bandeja IMAP configurable
+// Guarda la cuenta IMAP del usuario; la contraseña va CIFRADA (AES-256-GCM).
+// ============================================
+model EmailAccount {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  imapHost    String
+  imapPort    Int      @default(993)
+  imapSecure  Boolean  @default(true)
+  smtpHost    String   @default("")
+  smtpPort    Int      @default(587)
+  smtpSecure  Boolean  @default(false)
+  username    String
+  passwordEnc String   // contraseña cifrada (nunca en claro)
+  fromName    String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// RAG DE DOCUMENTOS (feature: docrag) — "chatea con tus documentos"
+// Fragmentos de los documentos del usuario, con embedding para recuperarlos por
+// similitud durante el chat.
+// ============================================
+model DocChunk {
+  id        String   @id @default(uuid())
+  userId    String
+  docId     String   // referencia al LibraryDocument de origen
+  source    String   // nombre del archivo
+  text      String
+  embedding Float[]
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ============================================
+// TOKENS DE API (feature: apitokens) — acceso programático a DAYA
+// Se guarda solo el HASH del token (nunca el token en claro).
+// ============================================
+model ApiToken {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String    @default("")
+  prefix     String    // primeros caracteres, para identificarlo en la lista
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ============================================
+// PLANTILLAS DE PROMPT (feature: prompts) — "presets" reutilizables
+// ============================================
+model PromptPreset {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
+// IMÁGENES GENERADAS (feature: genimages)
+// Guarda las imágenes generadas con IA para persistirlas en el chat y la Biblioteca.
+// ============================================
+model GeneratedImage {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt         String
+  model          String   @default("flux")
+  url            String
+  messageId      String?  // ID del mensaje en el chat (para restaurar en la vista)
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Kit de marca del usuario (Studio): colores, fuentes y logo para diseños
+// consistentes y on-brand. Uno por usuario (1:1).
+model BrandKit {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  colors    String[] // hex de marca
+  fonts     String[] // familias tipográficas
+  logoUrl   String?  // logo (dataURL o URL)
+  updatedAt DateTime @updatedAt
+}
+
+// Diseño guardado del Studio (editor Konva). `data` contiene el diseño completo
+// serializable { canvasW, canvasH, pages[] }. `thumbnail` es un PNG pequeño en
+// dataURL para la galería "Mis diseños". Patrón espejo de GeneratedImage.
+model Design {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versions   DesignVersion[]
+  comments   DesignComment[]
+  title      String   @default("Diseño sin título")
+  data       Json     // { canvasW, canvasH, pages: [{ id, name, elements, bg, bgGrad, bgPattern }] }
+  thumbnail  String?  // dataURL PNG reducido para la galería
+  w          Int      @default(1200)
+  h          Int      @default(800)
+  isTemplate Boolean  @default(false) // guardado como plantilla propia reutilizable (C)
+  shareToken String?  @unique         // si está, el diseño es visible por enlace público (solo lectura)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Comentario de feedback sobre un diseño. Lo puede dejar el dueño (autenticado)
+// o cualquiera con el enlace de compartir (guest, solo nombre). El dueño los
+// resuelve/borra desde el editor.
+model DesignComment {
+  id        String   @id @default(uuid())
+  designId  String
+  design    Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  author    String   @default("Invitado")
+  body      String
+  resolved  Boolean  @default(false)
+  isOwner   Boolean  @default(false)  // lo dejó el dueño desde el editor
+  createdAt DateTime @default(now())
+
+  @@index([designId, createdAt])
+}
+
+// Snapshot del historial de versiones de un diseño (máx. 15 por diseño,
+// espaciados: el autosave solo crea uno si el último tiene más de 10 minutos).
+model DesignVersion {
+  id        String   @id @default(uuid())
+  designId  String
+  design    Design   @relation(fields: [designId], references: [id], onDelete: Cascade)
+  title     String   @default("")
+  data      Json
+  thumbnail String?
+  createdAt DateTime @default(now())
+
+  @@index([designId, createdAt])
+}
+

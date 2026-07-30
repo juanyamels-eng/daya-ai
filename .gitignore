@@ -1,0 +1,41 @@
+# ===== DAYA IA — archivos que NUNCA se suben a GitHub =====
+
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Variables de entorno (¡SECRETOS! nunca subir)
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+!**/.env.example
+
+# Builds
+dist/
+**/dist/
+.next/
+**/.next/
+out/
+build/
+
+# Prisma generado
+**/.prisma/
+**/generated/
+
+# Logs y temporales
+*.log
+npm-debug.log*
+.DS_Store
+*.tsbuildinfo
+
+# Cachés generadas en runtime
+**/model-catalog.json
+
+# Editor
+.vscode/
+.idea/
+
+# Documentación interna de planificación (no para el público)
+docs/

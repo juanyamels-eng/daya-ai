@@ -1,0 +1,7 @@
+# Binary files — treat as binary, not text
+*.webm binary
+*.jpg binary
+*.png binary
+*.ico binary
+*.svg text
+*.mjs text
