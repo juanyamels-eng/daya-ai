@@ -40,7 +40,7 @@ export async function resolveEffectivePlan(user: UserUsage): Promise<PlanId> {
   if (isPaid && user.planExpiresAt && new Date(user.planExpiresAt).getTime() < Date.now()) {
     await prisma.user.update({
       where: { id: user.id },
-      data: { plan: 'FREE' as any, messagesLimit: PLANS.FREE.messageLimit },
+      data: { plan: 'FREE', messagesLimit: PLANS.FREE.messageLimit },
     }).catch(() => {})
     user.plan = 'FREE'
     return 'FREE'
@@ -50,7 +50,7 @@ export async function resolveEffectivePlan(user: UserUsage): Promise<PlanId> {
 
 // Reinicia TODOS los contadores si ya pasó la ventana del período del plan.
 export async function resetUsageIfDue(user: UserUsage): Promise<void> {
-  const planCfg = (PLANS as any)[user.plan] || PLANS.FREE
+  const planCfg = PLANS[user.plan] || PLANS.FREE
   const now = new Date()
   const lastReset = user.usageResetAt ? new Date(user.usageResetAt) : new Date(0)
   const resetMs = planCfg.limitPeriod === 'day' ? 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000
@@ -89,7 +89,7 @@ export async function consumeQuota(userId: string, kind: QuotaKind): Promise<Quo
   const plan = await resolveEffectivePlan(user)
   await resetUsageIfDue(user)
 
-  const planCfg = (PLANS as any)[plan] || PLANS.FREE
+  const planCfg = PLANS[plan] || PLANS.FREE
   const limit = planCfg[q.lim] as number
   const periodTxt = planCfg.limitPeriod === 'day' ? 'diario' : 'mensual'
 

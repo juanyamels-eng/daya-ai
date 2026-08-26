@@ -3,20 +3,20 @@
 // Prompts reutilizables que el usuario guarda y reusa. Todo interno (Prisma).
 // NOTA: requiere `npx prisma generate && npx prisma db push` (crea PromptPreset).
 // ============================================
-import { Router, Request, Response } from 'express'
+import { Router, Request } from 'express'
 import { requireAuth } from '../../middleware/auth'
 import { prisma } from '../../lib/prisma'
 
-const db = prisma as any
+const db = prisma
 const router = Router()
 router.use(requireAuth)
-const uid = (req: Request) => (req as any).userId
+const uid = (req: Request) => req.userId
 
 router.get('/', async (req, res) => {
   try {
     const presets = await db.promptPreset.findMany({ where: { userId: uid(req) }, orderBy: { updatedAt: 'desc' } })
     res.json(presets)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.post('/', async (req, res) => {
@@ -25,7 +25,7 @@ router.post('/', async (req, res) => {
   try {
     const preset = await db.promptPreset.create({ data: { userId: uid(req), title: title.trim().slice(0, 80), content: content.trim() } })
     res.status(201).json(preset)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.patch('/:id', async (req, res) => {
@@ -36,14 +36,14 @@ router.patch('/:id', async (req, res) => {
       data: { ...(title !== undefined ? { title } : {}), ...(content !== undefined ? { content } : {}) },
     })
     res.json({ success: r.count > 0 })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.delete('/:id', async (req, res) => {
   try {
     await db.promptPreset.deleteMany({ where: { id: req.params.id, userId: uid(req) } })
     res.json({ success: true })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 export default router

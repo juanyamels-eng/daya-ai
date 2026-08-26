@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuthStore } from '../../../store'
+import type { Session } from '@supabase/supabase-js'
 import { AuthBackground, AuthStyles } from '../../../components/auth/AuthChrome'
 
 export default function AuthCallback() {
@@ -41,7 +42,7 @@ export default function AuthCallback() {
         const errParam = params.get('error_description') || params.get('error')
         if (errParam) { setError(decodeURIComponent(errParam)); return }
 
-        let session: any = null
+        let session: Session | null = null
         let exchangeMsg = ''
 
         // 1) Flujo PKCE: intercambiar el ?code= por una sesión real.
@@ -54,7 +55,7 @@ export default function AuthCallback() {
             const { data, error: exErr } = await supabase.auth.exchangeCodeForSession(code)
             if (!exErr) session = data?.session ?? null
             else exchangeMsg = exErr.message || String(exErr)
-          } catch (e: any) { exchangeMsg = e?.message || String(e) }
+          } catch (e: unknown) { exchangeMsg = e instanceof Error && e.message ? e.message : String(e) }
         }
 
         // 2) Plan B: leer la sesión con reintentos (por si la URL aún se está procesando)
@@ -89,8 +90,8 @@ export default function AuthCallback() {
           return
         }
         setError(data.error || 'No se pudo completar el inicio de sesión con Google.')
-      } catch (e: any) {
-        setError(e?.message || 'Ocurrió un error iniciando sesión con Google.')
+      } catch (e: unknown) {
+        setError(e instanceof Error && e.message ? e.message : 'Ocurrió un error iniciando sesión con Google.')
       }
     }
     run()

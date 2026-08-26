@@ -120,26 +120,28 @@ export default function CodePage() {
 
       <style dangerouslySetInnerHTML={{ __html: `
         .cx-root {
-          --cx-bg: #0d0d0f;
-          --cx-card-bg: #161618;
-          --cx-border: #27272a;
-          --cx-text: #e4e4e7;
-          --cx-text-2: #a1a1aa;
-          --cx-text-3: #71717a;
-          --cx-accent: #f4f4f5;
+          /* Misma paleta que la landing y las pantallas de acceso (#131314,
+             no zinc): una sola voz visual en todo el producto. */
+          --cx-bg: #131314;
+          --cx-card-bg: #1e1e1f;
+          --cx-border: #444746;
+          --cx-text: #e3e3e3;
+          --cx-text-2: #c4c7c5;
+          --cx-text-3: #9aa0a6;
+          --cx-accent: #f1f3f4;
           background: var(--cx-bg); color: var(--cx-text);
           font-family: var(--font-body, ui-sans-serif, system-ui, sans-serif);
           min-height: 100vh; display: flex; flex-direction: column;
           -webkit-font-smoothing: antialiased;
         }
-        .cx-nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 40px; border-bottom: 1px solid var(--cx-border); background: rgba(13,13,15,0.85); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; }
+        .cx-nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 40px; border-bottom: 1px solid var(--cx-border); background: rgba(19,19,20,0.85); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; }
         .cx-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--cx-text); }
         .cx-logo img { width: 24px; height: 24px; object-fit: contain; filter: invert(1) brightness(1.2); }
         .cx-logo span { font-size: 1rem; font-weight: 600; letter-spacing: -0.04em; }
         .cx-nav-right { display: flex; align-items: center; gap: 10px; }
         .cx-nav-link { color: var(--cx-text-2); text-decoration: none; font-size: 0.82rem; font-weight: 500; padding: 8px 14px; border-radius: 999px; transition: color 0.15s, background 0.15s; }
         .cx-nav-link:hover { color: var(--cx-text); background: rgba(255,255,255,0.06); }
-        .cx-btn { display: inline-flex; align-items: center; justify-content: center; border: none; cursor: pointer; background: var(--cx-accent); color: #0d0d0f; font-weight: 600; font-family: inherit; text-decoration: none; white-space: nowrap; border-radius: 999px; transition: filter 0.15s; }
+        .cx-btn { display: inline-flex; align-items: center; justify-content: center; border: none; cursor: pointer; background: var(--cx-accent); color: #131314; font-weight: 600; font-family: inherit; text-decoration: none; white-space: nowrap; border-radius: 999px; transition: filter 0.15s; }
         .cx-btn:hover { filter: brightness(1.08); }
         .cx-btn-sm { padding: 9px 16px; font-size: 0.82rem; }
         .cx-btn-lg { padding: 13px 26px; font-size: 0.92rem; }
@@ -149,7 +151,7 @@ export default function CodePage() {
         .cx-eyebrow { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cx-text-3); }
         .cx-h1 { font-family: var(--font-display, ui-serif, serif); font-size: clamp(2rem, 4vw, 2.8rem); font-weight: 500; color: var(--cx-text); letter-spacing: -0.03em; line-height: 1.1; margin: 8px 0 12px; }
         .cx-sub { color: var(--cx-text-2); font-size: 0.92rem; margin-bottom: 48px; max-width: 55ch; line-height: 1.7; }
-        .cx-terminal { border-radius: 12px; overflow: hidden; border: 1px solid var(--cx-border); margin-bottom: 48px; background: #0a0a0b; }
+        .cx-terminal { border-radius: 12px; overflow: hidden; border: 1px solid var(--cx-border); margin-bottom: 48px; background: #0f0f11; }
         .cx-terminal-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #18181b; border-bottom: 1px solid #27272a; }
         .cx-dot { width: 10px; height: 10px; border-radius: 50%; display: block; }
         .cx-dot--r { background: #fc5753; }
@@ -171,16 +173,16 @@ export default function CodePage() {
         .cx-alt { font-size: 0.85rem; margin: 14px 0 0; }
         .cx-alt a { color: var(--cx-accent); text-decoration: underline; text-underline-offset: 3px; }
         .cx-alt code { background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
-        .cx-code-block { background: #0a0a0b; border: 1px solid var(--cx-border); border-radius: 8px; padding: 14px 16px; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.8; overflow-x: auto; white-space: nowrap; margin-bottom: 12px; }
+        .cx-code-block { background: #0f0f11; border: 1px solid var(--cx-border); border-radius: 8px; padding: 14px 16px; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.8; overflow-x: auto; white-space: nowrap; margin-bottom: 12px; }
         .cx-code-block--sm { padding: 10px 14px; margin: 8px 0 0; font-size: 0.78rem; }
         .cx-steps { display: flex; flex-direction: column; gap: 20px; }
         .cx-step-card { display: flex; gap: 14px; }
-        .cx-step-n { width: 24px; height: 24px; border-radius: 50%; background: var(--cx-accent); color: #0d0d0f; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+        .cx-step-n { width: 24px; height: 24px; border-radius: 50%; background: var(--cx-accent); color: #131314; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
         .cx-step-card strong { font-weight: 600; color: var(--cx-text); font-size: 0.9rem; }
         .cx-step-card p { color: var(--cx-text-2); font-size: 0.85rem; line-height: 1.6; margin: 4px 0 0; }
         .cx-step-card code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; font-size: 0.78rem; }
         .cx-feat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .cx-feat { padding: 14px 16px; border-radius: 8px; border: 1px solid var(--cx-border); background: #0a0a0b; }
+        .cx-feat { padding: 14px 16px; border-radius: 8px; border: 1px solid var(--cx-border); background: #0f0f11; }
         .cx-feat strong { display: block; font-weight: 600; color: var(--cx-text); font-size: 0.85rem; margin-bottom: 4px; }
         .cx-feat span { color: var(--cx-text-3); font-size: 0.78rem; }
         .cx-cta-block { padding: 28px 0; text-align: center; border-top: 1px solid var(--cx-border); }

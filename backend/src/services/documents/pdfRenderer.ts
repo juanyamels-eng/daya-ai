@@ -25,12 +25,12 @@ async function launchBrowser(): Promise<Browser> {
   // En produccion (Vercel/Lambda/contenedores sin Chrome) se puede usar
   // @sparticuz/chromium. Si esta instalado, se usa automaticamente.
   try {
-    const chromium = (await import('@sparticuz/chromium' as any)).default
+    const chromium = (await import('@sparticuz/chromium')).default
     return await puppeteer.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
       headless: true,
-    } as any)
+    })
   } catch {
     // Local / servidor con Chromium incluido en puppeteer
     return await puppeteer.launch({

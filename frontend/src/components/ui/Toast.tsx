@@ -92,10 +92,10 @@ export function useToast(): ToastCtx['toast'] {
   const ctx = React.useContext(Ctx)
   if (!ctx) {
     return {
-      success: (m: string) => console.log('[toast]', m),
+      success: (m: string) => console.warn('[toast]', m),
       error: (m: string) => console.warn('[toast]', m),
-      info: (m: string) => console.log('[toast]', m),
-      show: (_k, m) => console.log('[toast]', m),
+      info: (m: string) => console.warn('[toast]', m),
+      show: (_k, m) => console.warn('[toast]', m),
     }
   }
   return ctx.toast

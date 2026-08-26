@@ -1,10 +1,23 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
+import { Users, MessageSquare, Brain, Rocket, Zap, Dna, Lightbulb } from 'lucide-react'
 
 import { ADMIN_KEY, API } from '../../lib/config'
 
+interface AdminStats {
+  users?: { total?: number; today?: number; byPlan?: { plan: string; _count: number }[] }
+  conversations?: number
+  training?: {
+    total?: number
+    highQuality?: number
+    readyForFineTuning?: boolean
+    message?: string
+    recentInsights?: { type: string; data: string; date: string }[]
+  }
+}
+
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<any>(null)
+  const [stats, setStats] = useState<AdminStats | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -16,7 +29,7 @@ export default function AdminDashboard() {
 
   const plans = stats?.users?.byPlan || []
   const planMap: Record<string, number> = {}
-  plans.forEach((p: any) => { planMap[p.plan] = p._count })
+  plans.forEach((p) => { planMap[p.plan] = p._count })
 
   return (
     <div style={{ padding: '32px 32px', fontFamily: 'var(--font-body)' }}>
@@ -30,10 +43,10 @@ export default function AdminDashboard() {
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 28 }}>
         {[
-          { label: 'Usuarios totales', value: stats?.users?.total || 0, icon: '👥', color: '#3f3f46', change: `+${stats?.users?.today || 0} hoy` },
-          { label: 'Conversaciones', value: stats?.conversations || 0, icon: '💬', color: '#27272a', change: 'Total histórico' },
-          { label: 'Datos entrenamiento', value: stats?.training?.total || 0, icon: '🧠', color: '#10b981', change: `${stats?.training?.highQuality || 0} alta calidad` },
-          { label: 'Listo para fine-tuning', value: stats?.training?.readyForFineTuning ? '✓ Sí' : '✗ No', icon: '🚀', color: stats?.training?.readyForFineTuning ? '#10b981' : '#f59e0b', change: stats?.training?.readyForFineTuning ? '¡Puedes entrenar!' : `Faltan ${Math.max(0, 500 - (stats?.training?.total || 0))} datos` },
+          { label: 'Usuarios totales', value: stats?.users?.total || 0, icon: Users, color: '#3f3f46', change: `+${stats?.users?.today || 0} hoy` },
+          { label: 'Conversaciones', value: stats?.conversations || 0, icon: MessageSquare, color: '#27272a', change: 'Total histórico' },
+          { label: 'Datos entrenamiento', value: stats?.training?.total || 0, icon: Brain, color: '#10b981', change: `${stats?.training?.highQuality || 0} alta calidad` },
+          { label: 'Listo para fine-tuning', value: stats?.training?.readyForFineTuning ? '✓ Sí' : '✗ No', icon: Rocket, color: stats?.training?.readyForFineTuning ? '#10b981' : '#f59e0b', change: stats?.training?.readyForFineTuning ? '¡Puedes entrenar!' : `Faltan ${Math.max(0, 500 - (stats?.training?.total || 0))} datos` },
         ].map(card => (
           <KPICard key={card.label} {...card} />
         ))}
@@ -87,8 +100,8 @@ export default function AdminDashboard() {
       {/* Recent insights */}
       <Section title="Últimos insights de Daya" icon="💡">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-          {(stats?.training?.recentInsights || []).slice(0, 6).map((insight: any, i: number) => {
-            let data: any = {}
+          {(stats?.training?.recentInsights || []).slice(0, 6).map((insight, i) => {
+            let data: unknown = {}
             try { data = JSON.parse(insight.data) } catch {}
             return (
               <div key={i} style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
@@ -115,7 +128,7 @@ export default function AdminDashboard() {
   )
 }
 
-function KPICard({ label, value, icon, color, change }: any) {
+function KPICard({ label, value, icon, color, change }: { label: string; value: string | number; icon: string; color: string; change: string }) {
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: color, opacity: 0.6 }} />
@@ -129,7 +142,7 @@ function KPICard({ label, value, icon, color, change }: any) {
   )
 }
 
-function Section({ title, icon, children }: any) {
+function Section({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 14, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
@@ -141,7 +154,7 @@ function Section({ title, icon, children }: any) {
   )
 }
 
-function StatRow({ label, value, good }: any) {
+function StatRow({ label, value, good }: { label: string; value: string | number; good?: boolean }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border-default)' }}>
       <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{label}</span>

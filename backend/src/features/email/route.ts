@@ -10,7 +10,7 @@
 //   1) npx prisma generate && npx prisma db push   (crea la tabla EmailAccount)
 //   2) variable EMAIL_ENC_KEY (un texto secreto cualquiera) en el backend
 // ============================================
-import { Router, Request, Response } from 'express'
+import { Router, Request } from 'express'
 import { requireAuth } from '../../middleware/auth'
 import { prisma } from '../../lib/prisma'
 import { encryptSecret, decryptSecret, isEncryptionConfigured } from './crypto'
@@ -63,7 +63,7 @@ router.post('/connect', async (req, res) => {
     })
     await client.connect()
     await client.logout()
-  } catch (e: any) {
+  } catch {
     return res.status(400).json({ error: 'No se pudo conectar con esas credenciales. Revisa host, usuario y contraseña (algunos correos requieren una "contraseña de aplicación").' })
   }
   try {

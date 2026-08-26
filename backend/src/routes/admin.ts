@@ -1,16 +1,27 @@
-import { Router } from 'express'
-import { requireAuth } from '../middleware/auth'
+import { Router, Request, Response, NextFunction } from 'express'
+import { Prisma } from '@prisma/client'
 import { getTrainingStats } from '../services/training'
 import { nightlyLearningProcess } from '../services/training'
 import { prisma } from '../lib/prisma'
 import { PLANS, PlanId, getMessageLimit } from '../config/plans'
+import { adminLimiter } from '../middleware/rateLimiter'
+import { auditLog } from '../services/auditLog'
 
 const router = Router()
+
+// Registra una acción de administración en el audit log (best-effort).
+// No hay userId de sesión (el panel entra por clave), así que se firma como 'admin'.
+function auditAdmin(req: Request, details: Record<string, unknown>, success = true) {
+  auditLog({ userId: 'admin', action: 'admin.action', ip: req.ip, details, success }).catch(() => {})
+}
+
+// Apply admin rate limiter to all admin routes
+router.use(adminLimiter)
 
 // Middleware: solo el dueño de DAYA puede acceder.
 // SEGURIDAD: si ADMIN_SECRET_KEY no está configurada, se DENIEGA todo (antes,
 // con la variable vacía, undefined === undefined dejaba pasar a cualquiera).
-function requireAdmin(req: any, res: any, next: any) {
+function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const configured = process.env.ADMIN_SECRET_KEY
   const adminKey = req.headers['x-admin-key']
   if (!configured || !adminKey || adminKey !== configured) {
@@ -41,7 +52,7 @@ router.get('/stats', requireAdmin, async (req, res) => {
         ? '🚀 ¡Listo para fine-tuning! Tienes suficientes datos.'
         : `📊 Necesitas ${500 - trainingStats.total} conversaciones más para fine-tuning`
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Error al obtener estadísticas' })
   }
 })
@@ -90,7 +101,7 @@ router.patch('/instruction/:id', requireAdmin, async (req, res) => {
     if (!row || row.type !== 'instruction_update') {
       return res.status(404).json({ error: 'Propuesta no encontrada' })
     }
-    let parsed: any = {}
+    let parsed: { improvements?: unknown[] } | unknown[] = {}
     try { parsed = JSON.parse(row.data) } catch {}
     const improvements = Array.isArray(parsed) ? parsed : (parsed.improvements || [])
     const status = action === 'approve' ? 'approved' : 'rejected'
@@ -100,6 +111,7 @@ router.patch('/instruction/:id', requireAdmin, async (req, res) => {
     })
     const { invalidateInstructionCache } = await import('../services/training')
     invalidateInstructionCache()
+    auditAdmin(req, { op: 'instruction.decide', id: row.id, status })
     res.json({ success: true, status })
   } catch {
     res.status(500).json({ error: 'No se pudo actualizar la propuesta' })
@@ -114,7 +126,7 @@ router.get('/insights', requireAdmin, async (req, res) => {
       take: 50
     })
     res.json(insights)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Error al obtener insights' })
   }
 })
@@ -144,7 +156,7 @@ router.get('/training-data', requireAdmin, async (req, res) => {
     })
 
     res.json({ data, total, pages: Math.ceil(total / 20) })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Error al obtener datos de entrenamiento' })
   }
 })
@@ -158,7 +170,7 @@ router.post('/export-training', requireAdmin, async (req, res) => {
     })
 
     // Formato JSONL para fine-tuning con Llama/OpenAI
-    const jsonl = highQualityData.map((d: any) => JSON.stringify({
+    const jsonl = highQualityData.map((d) => JSON.stringify({
       messages: [
         { role: 'system', content: 'Eres DAYA, una asistente de IA avanzada, empática e inteligente.' },
         { role: 'user', content: d.userMessage },
@@ -168,14 +180,14 @@ router.post('/export-training', requireAdmin, async (req, res) => {
 
     // Marcar como usados
     await prisma.trainingData.updateMany({
-      where: { id: { in: highQualityData.map((d: any) => d.id) } },
+      where: { id: { in: highQualityData.map((d) => d.id) } },
       data: { usedInTraining: true }
     })
 
     res.setHeader('Content-Type', 'application/jsonl')
     res.setHeader('Content-Disposition', 'attachment; filename="daya-training-data.jsonl"')
     res.send(jsonl)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Error al exportar datos de entrenamiento' })
   }
 })
@@ -188,7 +200,7 @@ router.get('/users', requireAdmin, async (req, res) => {
       select: { id: true, name: true, email: true, plan: true, messagesUsed: true, messagesLimit: true, createdAt: true }
     })
     res.json({ users, total: users.length })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Error al obtener usuarios' })
   }
 })
@@ -202,7 +214,7 @@ router.patch('/users/:id', requireAdmin, async (req, res) => {
     if (plan && !PLANS[plan as PlanId]) {
       return res.status(400).json({ error: 'Plan inválido' })
     }
-    const data: any = {}
+    const data: Prisma.UserUncheckedUpdateInput = {}
     if (plan) {
       data.plan = plan
       data.messagesLimit = typeof messagesLimit === 'number' ? messagesLimit : getMessageLimit(plan as PlanId)
@@ -213,10 +225,11 @@ router.patch('/users/:id', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Nada que actualizar' })
     }
     const user = await prisma.user.update({ where: { id: req.params.id }, data })
+    auditAdmin(req, { op: 'user.update', targetUserId: req.params.id, changes: data })
     res.json(user)
-  } catch (error: any) {
+  } catch (error) {
     // P2025 = registro no encontrado
-    if (error?.code === 'P2025') return res.status(404).json({ error: 'Usuario no encontrado' })
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') return res.status(404).json({ error: 'Usuario no encontrado' })
     res.status(500).json({ error: 'Error al actualizar usuario' })
   }
 })
@@ -225,9 +238,10 @@ router.patch('/users/:id', requireAdmin, async (req, res) => {
 router.delete('/users/:id', requireAdmin, async (req, res) => {
   try {
     await prisma.user.delete({ where: { id: req.params.id } })
+    auditAdmin(req, { op: 'user.delete', targetUserId: req.params.id })
     res.json({ success: true })
-  } catch (error: any) {
-    if (error?.code === 'P2025') return res.status(404).json({ error: 'Usuario no encontrado' })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') return res.status(404).json({ error: 'Usuario no encontrado' })
     res.status(500).json({ error: 'Error al eliminar usuario' })
   }
 })

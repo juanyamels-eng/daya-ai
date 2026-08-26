@@ -1,39 +1,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { User as UserType, Message as MessageType, Conversation as ConversationType, ThemePref } from '../types/api'
 
-export interface User {
-  id: string
-  name: string
-  email: string
-  plan: 'FREE' | 'PRO'
-  messagesUsed: number
-  messagesLimit: number
-  avatarUrl?: string | null
-  emailVerified?: boolean
-}
+export type { ThemePref }
 
-export interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  model?: string
-  createdAt: string
-  images?: string[]
-  files?: { name: string; type: string; fileId?: string; url?: string }[]
-}
-
-export interface Conversation {
-  id: string
-  title: string
-  model: string
-  mode: string
-  updatedAt: string
-  messages?: Message[]
-}
-
-// Preferencia de apariencia. 'system' sigue a `prefers-color-scheme` del sistema
-// operativo y reacciona en caliente si el usuario lo cambia (ver template.tsx).
-export type ThemePref = 'light' | 'dark' | 'system'
+export type User = UserType
+export type Message = MessageType
+export type Conversation = ConversationType
 
 // Lo que el sistema operativo pide ahora mismo. En servidor no hay ventana: claro.
 export function systemTheme(): 'light' | 'dark' {
@@ -81,6 +54,9 @@ export const useAuthStore = create<AuthStore>()(
         // el chat viejo. Borrándolo, login → chat nuevo limpio.
         if (typeof window !== 'undefined') {
           try { sessionStorage.removeItem(ACTIVE_CONV_KEY) } catch {}
+          // Recarga completa deliberada: garantiza estado limpio de la app tras
+          // cerrar sesión (router.push no descartaría módulos ya cargados).
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination
           window.location.href = '/auth/login'
         }
       },
@@ -105,11 +81,12 @@ export const useAuthStore = create<AuthStore>()(
       // v1 añade themePref. A quien ya tenía un tema guardado se le respeta como
       // elección explícita; solo los nuevos arrancan siguiendo al sistema.
       version: 1,
-      migrate: (persisted: any, version) => {
-        if (version < 1 && persisted && !persisted.themePref) {
-          persisted.themePref = persisted.theme === 'dark' ? 'dark' : 'light'
+      migrate: (persisted, version) => {
+        const p = persisted as Partial<AuthStore>
+        if (version < 1 && p && !p.themePref) {
+          p.themePref = p.theme === 'dark' ? 'dark' : 'light'
         }
-        return persisted
+        return p as AuthStore
       },
       // Cuando termina de leer la sesión guardada del navegador, avisa.
       // Sin esto, el dashboard revisaba la sesión ANTES de cargarla y rebotaba al login.
@@ -129,6 +106,7 @@ interface ChatStore {
   setActiveId: (c: Conversation) => void
   setMessages: (m: Message[]) => void
   addMessage: (m: Message) => void
+  replaceMessage: (id: string, content: string) => void
   setLoading: (v: boolean) => void
   appendStream: (chunk: string) => void
   setStream: (content: string) => void
@@ -162,6 +140,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   setActiveId: (c) => { persistActiveConvId(c?.id); set({ activeConversation: c }) },
   setMessages: (messages) => set({ messages }),
   addMessage: (m) => set((s) => ({ messages: [...s.messages, m] })),
+  replaceMessage: (id, content) => set((s) => ({ messages: s.messages.map(m => m.id === id ? { ...m, content } : m) })),
   setLoading: (isLoading) => set({ isLoading }),
   appendStream: (chunk) => set((s) => ({ streamingContent: s.streamingContent + chunk })),
   // Reemplaza TODO el contenido del stream de una sola vez (1 render por frame

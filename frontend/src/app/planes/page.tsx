@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import type { AxiosError } from 'axios'
 import { paymentsAPI } from '../../lib/api'
 import { useAuthStore } from '../../store'
 import { useT } from '../../lib/i18n'
@@ -55,8 +56,9 @@ export default function PlanesPage() {
         setMessage(t('paymentSuccess'))
         setTimeout(() => router.push('/dashboard'), 1800)
       }
-    } catch (e: any) {
-      setMessage(e.response?.data?.error || t('paymentFailed'))
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ error?: string }>
+      setMessage(err.response?.data?.error || t('paymentFailed'))
     } finally {
       setProcessing(null)
       window.history.replaceState({}, '', '/planes')
@@ -77,8 +79,9 @@ export default function PlanesPage() {
         setMessage('No se pudo iniciar el pago. Intenta de nuevo.')
         setProcessing(null)
       }
-    } catch (e: any) {
-      setMessage(e.response?.data?.error || t('paymentFailed'))
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ error?: string }>
+      setMessage(err.response?.data?.error || t('paymentFailed'))
       setProcessing(null)
     }
   }

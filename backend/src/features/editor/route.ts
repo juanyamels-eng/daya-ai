@@ -136,7 +136,7 @@ router.get('/images', async (req: Request, res: Response) => {
   try {
     const images = await findImageCandidates(q)
     res.json({ images: (images || []).slice(0, 8) })
-  } catch (e: any) {
+  } catch {
     res.status(500).json({ error: 'No se pudieron buscar imágenes.', images: [] })
   }
 })

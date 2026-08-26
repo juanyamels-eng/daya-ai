@@ -1,16 +1,30 @@
 'use client'
 import { useState, useEffect } from 'react'
+import type { AxiosError } from 'axios'
 import { emailAPI } from '../../lib/api'
 import { useAuthStore } from '../../store'
 import { toast } from '../../lib/toast'
 
 const API = process.env.NEXT_PUBLIC_API_URL || ''
 
+interface EmailAccount { username?: string }
+
+interface EmailMessage {
+  uid: number
+  from: string
+  fromAddress?: string
+  subject: string
+  date: string
+  seen?: boolean
+}
+
+type ApiErr = AxiosError<{ error?: string }>
+
 export default function EmailWorkspace() {
   const { token } = useAuthStore()
-  const [status, setStatus] = useState<{ connected: boolean; encryptionReady: boolean; account: any } | null>(null)
+  const [status, setStatus] = useState<{ connected: boolean; encryptionReady: boolean; account: EmailAccount | null } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [messages, setMessages] = useState<any[]>([])
+  const [messages, setMessages] = useState<EmailMessage[]>([])
   const [loadingInbox, setLoadingInbox] = useState(false)
   const [error, setError] = useState('')
   const [summaries, setSummaries] = useState<Record<string, string>>({})
@@ -30,12 +44,14 @@ export default function EmailWorkspace() {
     try { const { data } = await emailAPI.account(); setStatus(data); if (data.connected) loadInbox() }
     catch {} finally { setLoading(false) }
   }
-  useEffect(() => { loadStatus() }, [])
+  useEffect(() => {
+    loadStatus()
+  }, [])
 
   const loadInbox = async () => {
     setLoadingInbox(true); setError('')
     try { const { data } = await emailAPI.inbox(); setMessages(data.messages || []) }
-    catch (e: any) { setError(e?.response?.data?.error || 'No se pudo cargar la bandeja.') }
+    catch (e: unknown) { setError((e as ApiErr)?.response?.data?.error || 'No se pudo cargar la bandeja.') }
     finally { setLoadingInbox(false) }
   }
 
@@ -45,7 +61,7 @@ export default function EmailWorkspace() {
     try {
       await emailAPI.connect({ ...form })
       await loadStatus()
-    } catch (e: any) { setError(e?.response?.data?.error || 'No se pudo conectar.') }
+    } catch (e: unknown) { setError((e as ApiErr)?.response?.data?.error || 'No se pudo conectar.') }
     finally { setConnecting(false) }
   }
 
@@ -76,7 +92,7 @@ export default function EmailWorkspace() {
       toast('Correo enviado', 'success')
       setCompose(false)
       setComposeForm({ to: '', subject: '', body: '' })
-    } catch (e: any) { toast(e.message || 'No se pudo enviar', 'error') }
+    } catch (e: unknown) { toast(e instanceof Error && e.message ? e.message : 'No se pudo enviar', 'error') }
     finally { setSending(false) }
   }
 

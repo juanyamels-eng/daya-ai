@@ -1,0 +1,57 @@
+# ============================================
+# DAYA IA — Docker Compose for Development
+# Full stack: PostgreSQL + pgvector + Backend
+# ============================================
+version: '3.9'
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: daya_dev
+      POSTGRES_USER: daya
+      POSTGRES_PASSWORD: daya_dev_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U daya -d daya_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - '4000:4000'
+    environment:
+      DATABASE_URL: postgresql://daya:daya_dev_password@db:5432/daya_dev
+      NODE_ENV: development
+      FRONTEND_URL: http://localhost:3000
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      JWT_SECRET: dev-secret-change-in-production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src
+    command: npx ts-node-dev --respawn --transpile-only src/index.ts
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+
+volumes:
+  pgdata:

@@ -1,11 +1,26 @@
-import { generateDocumentContent, GenerateRequest } from './documentService'
-import { DESIGN, hex } from './designSystem'
+import { GenerateRequest } from './documentService'
+import { DESIGN } from './designSystem'
 import { chatJSON, MODELS } from '../../services/openrouter'
+import { logger } from '../logger'
 
 // ============================================
 // GENERADOR DE POWERPOINT
 // Con búsqueda real de imágenes para cada slide
 // ============================================
+
+// Formas mínimas de las respuestas de las APIs de imágenes
+interface UnsplashSearch {
+  results?: Array<{ urls?: { regular?: string } }>
+}
+interface PexelsSearch {
+  photos?: Array<{ src?: { large?: string } }>
+}
+interface WikimediaSearch {
+  query?: { search?: Array<{ title?: string }> }
+}
+interface WikimediaInfo {
+  query?: { pages?: Record<string, { imageinfo?: Array<{ thumbwidth?: number; thumburl?: string; url?: string }> }> }
+}
 
 export interface SlideData {
   slideNumber: number
@@ -54,7 +69,12 @@ Responde SOLO con JSON válido (sin texto extra), con esta forma exacta:
   // FREE → DeepSeek V4 Pro (barato/bueno). Pago → Kimi K2.6 (el que mejor escribe).
   // Por alias, no por id: así el sanador del catálogo los mantiene vivos.
   const pptModel = (req.plan && !/free/i.test(req.plan)) ? MODELS.writer : MODELS.chat
-  const parsed = await chatJSON(prompt, undefined, pptModel)
+  const parsed = await chatJSON(prompt, undefined, pptModel) as {
+    title?: string
+    subtitle?: string
+    theme?: { primary: string; secondary: string; accent: string }
+    slides?: unknown
+  }
 
   // Garantizar estructura mínima
   const slides = Array.isArray(parsed.slides) && parsed.slides.length
@@ -84,10 +104,10 @@ async function fetchImagesForSlides(slides: SlideData[]): Promise<SlideData[]> {
             `https://api.unsplash.com/search/photos?query=${query}&per_page=1&orientation=landscape&content_filter=high`,
             { headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` } }
           )
-          const data = await res.json() as any
+          const data = await res.json() as UnsplashSearch
           const imageUrl = data.results?.[0]?.urls?.regular
           if (imageUrl) {
-            console.log(`✅ Unsplash: ${slide.imageQuery} → ${imageUrl.slice(0, 60)}...`)
+            logger.info(`✅ Unsplash: ${slide.imageQuery} → ${imageUrl.slice(0, 60)}...`)
             return { ...slide, imageUrl }
           }
         }
@@ -99,10 +119,10 @@ async function fetchImagesForSlides(slides: SlideData[]): Promise<SlideData[]> {
             `https://api.pexels.com/v1/search?query=${query}&per_page=1&orientation=landscape`,
             { headers: { Authorization: process.env.PEXELS_API_KEY } }
           )
-          const data = await res.json() as any
+          const data = await res.json() as PexelsSearch
           const imageUrl = data.photos?.[0]?.src?.large
           if (imageUrl) {
-            console.log(`✅ Pexels: ${slide.imageQuery} → ${imageUrl.slice(0, 60)}...`)
+            logger.info(`✅ Pexels: ${slide.imageQuery} → ${imageUrl.slice(0, 60)}...`)
             return { ...slide, imageUrl }
           }
         }
@@ -110,7 +130,7 @@ async function fetchImagesForSlides(slides: SlideData[]): Promise<SlideData[]> {
         // 3️⃣ Wikimedia Commons — gratis, sin límites, ideal para temas técnicos/históricos
         const wikiImageUrl = await searchWikimedia(slide.imageQuery)
         if (wikiImageUrl) {
-          console.log(`✅ Wikimedia: ${slide.imageQuery} → ${wikiImageUrl.slice(0, 60)}...`)
+          logger.info(`✅ Wikimedia: ${slide.imageQuery} → ${wikiImageUrl.slice(0, 60)}...`)
           return { ...slide, imageUrl: wikiImageUrl }
         }
 
@@ -139,14 +159,14 @@ async function searchWikimedia(query: string): Promise<string | null> {
     const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${searchQuery}&srnamespace=6&srlimit=5&format=json&origin=*`
 
     const searchRes = await fetch(searchUrl)
-    const searchData = await searchRes.json() as any
+    const searchData = await searchRes.json() as WikimediaSearch
     const results = searchData?.query?.search
 
     if (!results || results.length === 0) return null
 
     // Filtra solo imágenes de buena calidad (JPG o PNG)
-    const imageResults = results.filter((r: any) =>
-      r.title && (r.title.toLowerCase().includes('.jpg') || r.title.toLowerCase().includes('.png'))
+    const imageResults = results.filter((r): r is { title: string } =>
+      !!r.title && (r.title.toLowerCase().includes('.jpg') || r.title.toLowerCase().includes('.png'))
     )
 
     if (imageResults.length === 0) return null
@@ -156,11 +176,11 @@ async function searchWikimedia(query: string): Promise<string | null> {
     const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=File:${fileName}&prop=imageinfo&iiprop=url|size&iiurlwidth=1200&format=json&origin=*`
 
     const infoRes = await fetch(infoUrl)
-    const infoData = await infoRes.json() as any
+    const infoData = await infoRes.json() as WikimediaInfo
     const pages = infoData?.query?.pages
     if (!pages) return null
 
-    const page = Object.values(pages)[0] as any
+    const page = Object.values(pages)[0]
     const imageUrl = page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url
 
     // Filtra imágenes demasiado pequeñas
@@ -273,7 +293,7 @@ show(0);
 </html>`
 }
 
-function buildSlideHTML(slide: SlideData, total: number, isFirst: boolean, C: any): string {
+function buildSlideHTML(slide: SlideData, total: number, isFirst: boolean, _C: unknown): string {
   const n = slide.slideNumber
   const stamp = `<div class="brand-stamp">${DESIGN.brand.name}</div>`
   const num = `<div class="slide-number">${n} / ${total}</div>`

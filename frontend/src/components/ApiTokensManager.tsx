@@ -2,9 +2,10 @@
 import { useState, useEffect } from 'react'
 import { tokensAPI } from '../lib/api'
 import { toast } from '../lib/toast'
+import type { ApiToken } from '../types/api'
 
 export default function ApiTokensManager() {
-  const [tokens, setTokens] = useState<any[]>([])
+  const [tokens, setTokens] = useState<ApiToken[]>([])
   const [name, setName] = useState('')
   const [creating, setCreating] = useState(false)
   const [justCreated, setJustCreated] = useState<string | null>(null)

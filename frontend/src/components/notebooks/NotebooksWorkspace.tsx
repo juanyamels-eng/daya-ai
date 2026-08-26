@@ -22,6 +22,7 @@
 // ============================================
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import type { AxiosError } from 'axios'
 import { notebooksAPI } from '../../lib/api'
 import { useAuthStore } from '../../store'
 
@@ -30,6 +31,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 interface Notebook { id: string; title: string; updatedAt: string; sourceCount?: number }
 interface Source { id: string; type: 'document' | 'url' | 'text' | 'audio'; title: string; docId?: string | null; createdAt: string }
 interface Msg { role: 'user' | 'assistant'; content: string; label?: string; audio?: string; transcript?: string }
+interface LibDoc { id: string; fileName?: string; name?: string }
+
+type ApiErr = AxiosError<{ error?: string }>
 
 // Cada cuaderno estrena color de portada, como en NotebookLM. Sale del id (no se
 // guarda nada): el mismo cuaderno luce siempre igual, y una lista de diez deja
@@ -60,11 +64,12 @@ const glyphOf = (id: string) => GLYPHS[hashOf(id, 0x9e3779b9, 2246822519) % GLYP
 // Traduce el fallo a algo accionable. Los dos que importan y antes no se veían:
 // 401 (la sesión ya no vale — te quedas mirando una app que no puede guardar
 // nada) y 429 (el límite de peticiones, que se pasa solo esperando).
-const errMsg = (e: any, fallback: string) => {
-  const s = e?.response?.status
+const errMsg = (e: unknown, fallback: string) => {
+  const err = e as ApiErr
+  const s = err?.response?.status
   if (s === 401 || s === 403) return 'Tu sesión ha caducado. Vuelve a entrar para seguir.'
   if (s === 429) return 'Demasiadas peticiones seguidas. Espera un momento y reinténtalo.'
-  return e?.response?.data?.error || fallback
+  return err?.response?.data?.error || fallback
 }
 
 // La cita [n] de la maqueta de portada: en violeta y en versalita, el mismo hilo
@@ -96,7 +101,7 @@ export default function NotebooksWorkspace() {
   const [savedNoteIdx, setSavedNoteIdx] = useState<number | null>(null)
   const [reporting, setReporting] = useState(false)
   const audioInputRef = useRef<HTMLInputElement>(null)
-  const [libDocs, setLibDocs] = useState<any[]>([])
+  const [libDocs, setLibDocs] = useState<LibDoc[]>([])
   const [urlValue, setUrlValue] = useState('')
   const [textTitle, setTextTitle] = useState('')
   const [textValue, setTextValue] = useState('')
@@ -116,7 +121,7 @@ export default function NotebooksWorkspace() {
   // hace desaparecer, solo deja al usuario dándole al botón.
   const loadList = async () => {
     try { setNotebooks((await notebooksAPI.list()).data || []); setError('') }
-    catch (e: any) { setError(errMsg(e, 'No se pudieron cargar tus cuadernos.')) }
+    catch (e: unknown) { setError(errMsg(e, 'No se pudieron cargar tus cuadernos.')) }
   }
 
   const openNotebook = async (nb: Notebook) => {
@@ -133,7 +138,7 @@ export default function NotebooksWorkspace() {
       const r = await notebooksAPI.create()
       await loadList()
       openNotebook(r.data)
-    } catch (e: any) { setError(errMsg(e, 'No se pudo crear el cuaderno.')) }
+    } catch (e: unknown) { setError(errMsg(e, 'No se pudo crear el cuaderno.')) }
   }
 
   const deleteNotebook = async (nb: Notebook, e: React.MouseEvent) => {
@@ -168,15 +173,15 @@ export default function NotebooksWorkspace() {
     }
   }
 
-  const addSource = async (data: any) => {
+  const addSource = async (data: { type: 'document' | 'url' | 'text'; docId?: string; url?: string; title?: string; content?: string }) => {
     if (!active) return
     setAdding(true); setError('')
     try {
       const r = await notebooksAPI.addSource(active.id, data)
       setSources(s => [...s, r.data])
       setAddMode(''); setUrlValue(''); setTextTitle(''); setTextValue('')
-    } catch (e: any) {
-      setError(e.response?.data?.error || 'No se pudo añadir la fuente.')
+    } catch (e: unknown) {
+      setError((e as ApiErr)?.response?.data?.error || 'No se pudo añadir la fuente.')
     } finally { setAdding(false) }
   }
 
@@ -190,8 +195,8 @@ export default function NotebooksWorkspace() {
       const { notebooksAPI: nbAPI } = await import('../../lib/api')
       const r = await nbAPI.addAudioSource(active.id, file)
       setSources(s => [...s, r.data])
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'No se pudo transcribir el audio.')
+    } catch (err: unknown) {
+      setError((err as ApiErr)?.response?.data?.error || 'No se pudo transcribir el audio.')
     } finally { setAdding(false) }
   }
 
@@ -203,8 +208,8 @@ export default function NotebooksWorkspace() {
       const r = await notebooksAPI.report(active.id)
       setMsgs(m => [...m, { role: 'assistant', content: `El informe **${r.data.title}** quedó guardado en tu Biblioteca y la descarga ya comenzó.`, label: 'Informe PDF' }])
       window.open(`${API_URL}/api/documents/download/${r.data.docId}`, '_blank', 'noopener')
-    } catch (e: any) {
-      setError(e.response?.data?.error || 'No se pudo generar el informe.')
+    } catch (e: unknown) {
+      setError((e as ApiErr)?.response?.data?.error || 'No se pudo generar el informe.')
     } finally { setReporting(false) }
   }
 
@@ -236,8 +241,8 @@ export default function NotebooksWorkspace() {
       const history = msgs.slice(-8).map(m => ({ role: m.role, content: m.content }))
       const r = await notebooksAPI.chat(active.id, q, history)
       setMsgs(m => [...m, { role: 'assistant', content: r.data.answer }])
-    } catch (e: any) {
-      setError(e.response?.data?.error || 'No se pudo responder. Intenta de nuevo.')
+    } catch (e: unknown) {
+      setError((e as ApiErr)?.response?.data?.error || 'No se pudo responder. Intenta de nuevo.')
     } finally { setBusy(false) }
   }
 
@@ -270,7 +275,7 @@ export default function NotebooksWorkspace() {
           const raw = buf.slice(0, idx); buf = buf.slice(idx + 2)
           for (const line of raw.split('\n')) {
             if (!line.startsWith('data: ')) continue
-            let ev: any
+            let ev: { status?: string; error?: string; done?: boolean; audio?: string; title?: string; mime?: string; transcript?: string }
             try { ev = JSON.parse(line.slice(6)) } catch { continue }
             if (ev.status) setAudioStatus(ev.status)
             if (ev.error) throw new Error(ev.error)
@@ -280,8 +285,8 @@ export default function NotebooksWorkspace() {
           }
         }
       }
-    } catch (e: any) {
-      setError(e.message || 'No se pudo generar el audio.')
+    } catch (e: unknown) {
+      setError(e instanceof Error && e.message ? e.message : 'No se pudo generar el audio.')
     } finally { setAudioStatus('') }
   }
 
@@ -291,8 +296,8 @@ export default function NotebooksWorkspace() {
     try {
       const r = await notebooksAPI.transform(active.id, kind)
       setMsgs(m => [...m, { role: 'assistant', content: r.data.content, label: r.data.title }])
-    } catch (e: any) {
-      setError(e.response?.data?.error || `No se pudo generar: ${label}.`)
+    } catch (e: unknown) {
+      setError((e as ApiErr)?.response?.data?.error || `No se pudo generar: ${label}.`)
     } finally { setTransforming('') }
   }
 
@@ -545,7 +550,7 @@ export default function NotebooksWorkspace() {
                 {addMode === 'document' && (
                   <div className="nb-scroll" style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {libDocs.length === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', lineHeight: 1.6 }}>Tu Biblioteca está vacía. Sube documentos desde el chat o la Biblioteca.</span>}
-                    {libDocs.map((d: any) => (
+                    {libDocs.map(d => (
                       <button key={d.id} disabled={adding} onClick={() => addSource({ type: 'document', docId: d.id })}
                         style={{ ...pill, borderRadius: 10, textAlign: 'left', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '8px 11px' }}
                         onMouseEnter={pillHover(true)} onMouseLeave={pillHover(false)}>

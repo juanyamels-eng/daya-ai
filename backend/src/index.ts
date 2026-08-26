@@ -1,9 +1,15 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import compression from 'compression'
 import dotenv from 'dotenv'
+import path from 'path'
 import { rateLimiter } from './middleware/rateLimiter'
 import { errorHandler } from './middleware/errorHandler'
+import { sanitizeBody } from './middleware/sanitize'
+import { requestTimeout } from './middleware/timeout'
+import { logger, requestLogger } from './services/logger'
+import { cspNonceMiddleware } from './middleware/csp'
 import authRoutes from './routes/auth'
 import chatRoutes from './routes/chat'
 import userRoutes from './routes/user'
@@ -13,6 +19,7 @@ import documentRoutes from './routes/documents'
 import readurlRoutes from './features/readurl/route'
 import agentRoutes from './features/agent/route'
 import codeagentRoutes from './features/codeagent/route'
+import ollamaRoutes from './features/ollama/route'
 import openaiApiRoutes from './features/openaiapi/route'
 import compareRoutes from './features/compare/route'
 import notesRoutes from './features/notes/route'
@@ -37,6 +44,7 @@ import codemapRoutes from './features/codemap/route'
 import flowRoutes from './features/flow/route'
 import actionsRoutes from './features/actions/route'
 import audiointelRoutes from './features/audiointel/route'
+import agentCompositionRoutes from './features/agent-composition/route'
 import careerRoutes from './features/career/route'
 import blocksRoutes from './features/blocks/route'
 import projectsRoutes from './features/projects/route'
@@ -50,14 +58,53 @@ import designsRoutes from './features/designs/route'
 import publicDesignRoutes from './features/designs/public'
 import brandkitRoutes from './features/brandkit/route'
 import stockRoutes from './features/stock/route'
+import toolsRoutes from './features/tools/route'
+import selfimproveRoutes from './features/selfimprove/route'
+import mcpRoutes from './features/mcp/route'
+import sandboxRoutes from './features/sandbox/route'
+import graphragRoutes from './features/graphrag/route'
+import browserRoutes from './features/browser/route'
+import orchestratorRoutes from './features/agent/orchestratorRoute'
+import healthRoutes from './features/health/route'
+import webhookRoutes from './features/webhooks/route'
+import analyticsRoutes from './features/analytics/route'
+import workflowRoutes from './features/workflows/route'
+import workspaceRoutes from './features/workspaces/route'
+import pluginRoutes from './features/plugins/route'
+import memoryRoutes from './features/memory/route'
+import marketplaceRoutes from './features/marketplace/route'
+import collaborationRoutes from './features/collaboration/route'
+import ssoRoutes from './features/sso/route'
+import analyticsBiRoutes from './features/analytics-bi/route'
+import sdkGeneratorRoutes from './features/sdk-generator/route'
+import agentBuilderRoutes from './features/agent-builder/route'
+import meetingAssistantRoutes from './features/meeting-assistant/route'
+import slackBotRoutes from './features/slack-bot/route'
+import voiceRoutes from './features/voice/route'
+import genvideosRoutes from './features/genvideos/route'
+import widgetRoutes from './features/widget/route'
+import dataRoutes from './features/data/route'
 import { startScheduler } from './services/scheduler'
 import { validateEnv } from './config/validateEnv'
+import { setupSwagger } from './services/swagger'
 
 dotenv.config()
 
 // Catches unhandled errors to avoid silent crashes in production
 import { setupProcessGuards } from './services/monitoring'
 setupProcessGuards()
+
+// Sentry error tracking (only if SENTRY_DSN is set)
+import { initSentry } from './services/sentry'
+initSentry()
+
+// OpenTelemetry tracing (only if OTEL_ENABLED=true)
+import { initOtel } from './services/otel'
+initOtel()
+
+// Langfuse prompt evaluation (only if LANGFUSE_PUBLIC_KEY/SECRET_KEY set)
+import { initLangfuse } from './services/langfuse'
+initLangfuse()
 
 // Verifies that critical environment variables exist before booting
 validateEnv()
@@ -70,7 +117,20 @@ const PORT = process.env.PORT || 4000
 // users as one (unfair mass blocks in production).
 app.set('trust proxy', 1)
 
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false, // We use custom CSP with nonces via cspNonceMiddleware
+  hsts: { maxAge: 31536000, includeSubDomains: true },
+}))
+
+// CSP with nonces — must be after helmet, before routes
+app.use(cspNonceMiddleware)
+
+// Gzip/Brotli compression — reduces response size by 60-80%
+app.use(compression({ filter: (req, res) => {
+  if (req.headers['x-no-compression']) return false
+  return compression.filter(req, res)
+}}))
 
 // CORS — supports multiple origins (local + production)
 const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:3000')
@@ -109,13 +169,20 @@ app.use(cors({
 // Payment webhook needs the raw body to verify the HMAC signature.
 // It is mounted BEFORE express.json so it doesn't parse it.
 import { paymentsWebhook } from './routes/payments'
-app.post('/api/payments/webhook', express.raw({ type: '*/*', limit: '1mb' }), paymentsWebhook)
+import { webhookLimiter } from './middleware/rateLimiter'
+app.post('/api/payments/webhook', webhookLimiter, express.raw({ type: '*/*', limit: '1mb' }), paymentsWebhook)
 // The WhatsApp webhook also needs the raw body to verify the signature.
 import { whatsappWebhook } from './features/whatsapp/route'
-app.post('/api/whatsapp/webhook', express.raw({ type: '*/*', limit: '1mb' }), whatsappWebhook)
+app.post('/api/whatsapp/webhook', webhookLimiter, express.raw({ type: '*/*', limit: '1mb' }), whatsappWebhook)
 
 app.use(express.json({ limit: '25mb' }))
+app.use(sanitizeBody)
 app.use(rateLimiter)
+app.use(requestTimeout(120_000))
+app.use(requestLogger)
+
+// Audio de voz de la herramienta `hablar` (MP3 efímeros, gitignorados).
+app.use('/audio', express.static(path.join(__dirname, '..', 'public', 'audio'), { maxAge: '1d', fallthrough: false }))
 
 // Public routes
 app.use('/api/auth', authRoutes)
@@ -130,6 +197,8 @@ app.use('/api/documents', documentRoutes)
 app.use('/api/read-url', readurlRoutes)
 app.use('/api/agent', agentRoutes)
 app.use('/api/codeagent', codeagentRoutes)
+// Ollama local models management
+app.use('/api/ollama', ollamaRoutes)
 // OpenAI-compatible API: lets you use DAYA from OpenCode, Cline, Continue,
 // Zed, Aider… The /v1 prefix is what all these clients expect.
 app.use('/v1', openaiApiRoutes)
@@ -177,46 +246,104 @@ app.use('/api/designs', designsRoutes)
 app.use('/api/public', publicDesignRoutes)
 app.use('/api/brandkit', brandkitRoutes)
 app.use('/api/stock', stockRoutes)
+app.use('/api/tools', toolsRoutes)
+app.use('/api/system/selfimprove', selfimproveRoutes)
 
+// ── Agentic Platform routes ──
+app.use('/api/mcp', mcpRoutes)
+app.use('/api/sandbox', sandboxRoutes)
+app.use('/api/graphrag', graphragRoutes)
+app.use('/api/browser', browserRoutes)
+app.use('/api/orchestrator', orchestratorRoutes)
+
+// ── Production infrastructure routes ──
+app.use('/api/health', healthRoutes)
+app.use('/api/webhooks', webhookRoutes)
+app.use('/api/analytics', analyticsRoutes)
+app.use('/api/workflows', workflowRoutes)
+app.use('/api/plugins', pluginRoutes)
+app.use('/api/memory', memoryRoutes)
+app.use('/api/workspaces', workspaceRoutes)
+app.use('/api/marketplace', marketplaceRoutes)
+app.use('/api/collaboration', collaborationRoutes)
+app.use('/api/sso', ssoRoutes)
+app.use('/api/analytics/bi', analyticsBiRoutes)
+app.use('/api/sdk', sdkGeneratorRoutes)
+app.use('/api/agent-builder', agentBuilderRoutes)
+app.use('/api/agent-composition', agentCompositionRoutes)
+app.use('/api/meetings', meetingAssistantRoutes)
+app.use('/api/slack', slackBotRoutes)
+app.use('/api/voice', voiceRoutes)
+app.use('/api/videos', genvideosRoutes)
+app.use('/api/widget', widgetRoutes)
+app.use('/api/data', dataRoutes)
+
+// ── API Documentation (Swagger) ──
+setupSwagger(app)
+
+// Legacy health endpoints (kept for backward compatibility)
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'DAYA AI', version: '1.0.0' })
+  res.json({ status: 'ok', service: 'DAYA AI', version: '2.0.0', deprecation: 'Use /api/health instead' })
 })
 
-// Direct database test. Opening this URL in the browser tells you whether
-// the Supabase connection works or not — no guessing.
 app.get('/health/db', async (_req, res) => {
   try {
     const { prisma } = await import('./lib/prisma')
     await prisma.$queryRaw`SELECT 1`
     const users = await prisma.user.count()
     res.json({ database: 'OK', conectada: true, usuarios_registrados: users })
-  } catch (e: any) {
-    res.status(500).json({ database: 'FALLA', conectada: false, error: e?.message || 'error desconocido' })
+  } catch (e) {
+    res.status(500).json({ database: 'FALLA', conectada: false, error: e instanceof Error ? e.message : 'error desconocido' })
   }
 })
 
 app.use(errorHandler)
 
 const server = app.listen(PORT, () => {
-  console.log(`🌟 DAYA IA Backend corriendo en puerto ${PORT}`)
+  logger.info({ port: PORT }, 'DAYA IA Backend started')
+
   // Start secret scheduler
   startScheduler()
-  console.log('🤫 Sistema de auto-mejora activado silenciosamente')
+  logger.info('Self-improvement scheduler active')
+
+  // Initialize agentic platform services
+  import('./features/mcp/registry').then(m => m.initMcpServers()).catch(() => {})
+  import('./features/sandbox/registry').then(m => m.initSandbox()).catch(() => {})
+
+  // Start cron jobs and analytics persistence
+  import('./services/cron').then(m => m.startDefaultJobs()).catch(() => {})
+  import('./services/analytics').then(m => m.startAnalyticsPersistence()).catch(() => {})
+
+  // Setup WebSocket for real-time collaboration
+  try {
+    const { Server: SocketServer } = require('socket.io')
+    const io = new SocketServer(server, {
+      cors: {
+        origin: allowedOrigins,
+        credentials: true,
+      },
+      path: '/ws',
+    })
+    import('./features/collaboration/ws').then(m => m.setupCollaboration(io))
+    import('./features/voice/handler').then(m => m.setupVoiceHandler(io))
+    logger.info('WebSocket collaboration + voice server started')
+  } catch {
+    logger.warn('WebSocket server failed to start (non-critical)')
+  }
 })
 
 // Clean shutdown (Railway deploys): stops accepting NEW connections,
 // finishes in-flight responses, shuts down Puppeteer and disconnects the database.
 // If something hangs, force exit after 10s.
 async function shutdown() {
+  logger.info('Shutting down gracefully...')
   server.close(async () => {
-    try {
-      const { closePdfBrowser } = await import('./services/documents/pdfRenderer')
-      await closePdfBrowser()
-    } catch {}
-    try {
-      const { prisma } = await import('./lib/prisma')
-      await prisma.$disconnect()
-    } catch {}
+    try { await import('./features/mcp/registry').then(m => m.shutdownMcpServers()) } catch {}
+    try { await import('./features/browser/browser').then(m => m.closeBrowser()) } catch {}
+    try { const { closePdfBrowser } = await import('./services/documents/pdfRenderer'); await closePdfBrowser() } catch {}
+    try { await import('./services/analytics').then(m => m.stopAnalyticsPersistence()) } catch {}
+    try { const { prisma } = await import('./lib/prisma'); await prisma.$disconnect() } catch {}
+    logger.info('Shutdown complete')
     process.exit(0)
   })
   setTimeout(() => process.exit(0), 10_000).unref()

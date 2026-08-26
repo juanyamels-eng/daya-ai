@@ -64,9 +64,13 @@ async function falGenerate(model: string, prompt: string, w: number, h: number, 
       headers: { Authorization: `Key ${falKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    if (r.ok) { const j: any = await r.json(); const u = j?.images?.[0]?.url; return typeof u === 'string' ? u : '' }
+    if (r.ok) {
+      const j = (await r.json()) as { images?: Array<{ url?: unknown }> }
+      const u = j?.images?.[0]?.url
+      return typeof u === 'string' ? u : ''
+    }
     console.warn(`[fal.gen:${model}] status`, r.status)
-  } catch (e: any) { console.warn(`[fal.gen:${model}] error`, e?.message) }
+  } catch (e) { console.warn(`[fal.gen:${model}] error`, e instanceof Error ? e.message : String(e)) }
   return ''
 }
 
@@ -151,8 +155,8 @@ router.get('/', requireAuth, async (req, res) => {
       license: x.license ? String(x.license).toUpperCase() : '',
     })).filter((x: any) => x.url)
     res.json({ results })
-  } catch (e: any) {
-    console.error('[stock GET] error:', e?.message || e)
+  } catch (e) {
+    console.error('[stock GET] error:', e instanceof Error ? e.message : e)
     res.status(500).json({ error: 'stock_failed' })
   }
 })

@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import type { AxiosError } from 'axios'
 import { api } from '../../../lib/api'
 import { AuthBackground, AuthStyles, DayaLogo, CheckMark } from '../../../components/auth/AuthChrome'
 
@@ -16,7 +17,10 @@ function VerifyContent() {
     if (!token) { setStatus('error'); setError('Enlace inválido o incompleto.'); return }
     api.post('/auth/verify', { token })
       .then(() => { setStatus('ok'); setTimeout(() => router.replace('/dashboard'), 2000) })
-      .catch((e: any) => { setStatus('error'); setError(e.response?.data?.error || 'El enlace expiró o no es válido.') })
+      .catch((e: unknown) => {
+        const err = e as AxiosError<{ error?: string }>
+        setStatus('error'); setError(err.response?.data?.error || 'El enlace expiró o no es válido.')
+      })
   }, [])
 
   return (

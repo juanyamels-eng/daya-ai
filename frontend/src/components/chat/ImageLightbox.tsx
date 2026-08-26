@@ -85,10 +85,11 @@ export default function ImageLightbox({ url, prompt, onClose }: { url: string; p
       setBusy(true)
       const blob = await renderToBlob('image/png')
       setBusy(false)
-      if (!blob || !navigator.clipboard || typeof (window as any).ClipboardItem === 'undefined') {
+      const w = window as unknown as { ClipboardItem?: typeof ClipboardItem }
+      if (!blob || !navigator.clipboard || typeof w.ClipboardItem === 'undefined') {
         window.open(url, '_blank', 'noopener'); return
       }
-      await navigator.clipboard.write([new (window as any).ClipboardItem({ 'image/png': blob })])
+      await navigator.clipboard.write([new w.ClipboardItem({ 'image/png': blob })])
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
     } catch {

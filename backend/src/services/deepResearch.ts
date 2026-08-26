@@ -2,7 +2,7 @@
 // DAYA IA — Motor de Investigación Profunda (Deep Research)
 // Orquesta: búsqueda web → limpieza → mega-informe → PDF
 // ============================================
-import { searchWeb, buildSubQueries, buildSmartSubQueries, isWebSearchConfigured, SearchResult } from './webSearch'
+import { searchWeb, buildSmartSubQueries, isWebSearchConfigured, SearchResult } from './webSearch'
 import { chatJSON } from './openrouter'
 
 export { isWebSearchConfigured }
@@ -86,7 +86,7 @@ Genera un informe de investigación profundo y completo basado en estas fuentes.
   const markdown = `${parsed.content || ''}\n\n## Bibliografía\n\n${biblio}`
 
   return {
-    title: parsed.title || `Informe: ${topic}`,
+    title: String(parsed.title) || `Informe: ${topic}`,
     markdown,
     sources: used.map(s => ({ title: s.title, url: s.url })),
   }
@@ -105,6 +105,6 @@ ${titles}
 ¿Qué ángulos, datos, contraejemplos o secciones importantes todavía NO están cubiertos? Propón entre 2 y 4 búsquedas web nuevas y específicas para llenar esos huecos (no repitas lo ya cubierto).
 Responde SOLO con: {"queries": ["búsqueda 1", "búsqueda 2"]}`
   const parsed = await chatJSON(ask, sys)
-  const qs = Array.isArray(parsed?.queries) ? parsed.queries : []
-  return qs.filter((q: any) => typeof q === 'string' && q.trim()).map((q: string) => q.trim()).slice(0, 4)
+  const qs: unknown[] = Array.isArray(parsed?.queries) ? parsed.queries : []
+  return qs.filter((q): q is string => typeof q === 'string' && !!q.trim()).map((q) => q.trim()).slice(0, 4)
 }

@@ -5,6 +5,13 @@ import { Resend } from 'resend'
 // Plantillas con la estética neutra de DAYA AI
 // ============================================
 
+import { childLogger } from './logger'
+import { withRetry } from './retry'
+import { CircuitBreaker } from './circuitBreaker'
+
+const log = childLogger('email')
+const emailCircuit = new CircuitBreaker('email', { failureThreshold: 3, recoveryTimeoutMs: 60000 })
+
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null
@@ -59,10 +66,21 @@ function button(text: string, url: string): string {
   return `<a href="${url}" style="display:inline-block;background:${C.charcoal};color:${C.white};text-decoration:none;padding:13px 28px;border-radius:10px;font-size:15px;font-weight:600;">${text}</a>`
 }
 
+// Helper: enviar email con retry + circuit breaker
+async function safeSend(params: { from: string; to: string; subject: string; html: string }): Promise<boolean> {
+  if (!resend) return false
+  try {
+    await emailCircuit.execute(() => withRetry(async () => {
+      await resend!.emails.send(params)
+    }, { maxRetries: 2, baseDelayMs: 1000 }))
+    return true
+  } catch (e) {
+    log.error({ err: e instanceof Error ? e.message : String(e), to: params.to }, 'Email send failed')
+    return false
+  }
+}
+
 // ── Alerta operativa: modelos muertos en OpenRouter ──────────────────────────
-// La manda el vigilante del catálogo al ADMIN (ADMIN_ALERT_EMAIL) cuando un ID
-// en uso desaparece: sin esto, el fallback degrada en silencio a modelos más
-// caros y nadie se entera hasta ver la factura.
 export async function sendModelAlertEmail(dead: { id: string; sources: string[] }[]): Promise<boolean> {
   const to = process.env.ADMIN_ALERT_EMAIL
   if (!resend || !to || dead.length === 0) return false
@@ -87,20 +105,10 @@ export async function sendModelAlertEmail(dead: { id: string; sources: string[] 
       Reemplázalos en <span style="font-family:monospace;">backend/src</span> (openrouter.ts / modelSelector.ts) y verifica el nuevo ID con una petición real.
     </p>
   `)
-  try {
-    await resend.emails.send({ from: FROM, to, subject: `Alerta DAYA: ${dead.length} modelo${dead.length > 1 ? 's' : ''} muerto${dead.length > 1 ? 's' : ''} en OpenRouter`, html })
-    return true
-  } catch (e: any) {
-    console.error('[email] No se pudo enviar la alerta de modelos:', e?.message || e)
-    return false
-  }
+  return safeSend({ from: FROM, to, subject: `Alerta DAYA: ${dead.length} modelo${dead.length > 1 ? 's' : ''} muerto${dead.length > 1 ? 's' : ''} en OpenRouter`, html })
 }
 
 // ── Aviso: DAYA cambió de modelo ella sola ───────────────────────────────────
-// El sanador del catálogo sustituye los modelos muertos y adopta las versiones
-// nuevas sin intervención. Que sea automático no significa que deba ser
-// invisible: este correo es el recibo de cada cambio, con el precio antes y
-// después, para que nadie descubra el cambio por la factura.
 export async function sendModelChangeEmail(
   changes: { source: string; role: string; from: string; to: string; reason: 'muerto' | 'version-nueva'; priceFrom?: number; priceTo?: number }[],
 ): Promise<boolean> {
@@ -144,13 +152,7 @@ export async function sendModelChangeEmail(
       seguirán sustituyéndose solo los modelos que desaparezcan.
     </p>
   `)
-  try {
-    await resend.emails.send({ from: FROM, to, subject: `DAYA cambió ${changes.length} modelo${changes.length > 1 ? 's' : ''} automáticamente`, html })
-    return true
-  } catch (e: any) {
-    console.error('[email] No se pudo enviar el aviso de cambio de modelos:', e?.message || e)
-    return false
-  }
+  return safeSend({ from: FROM, to, subject: `DAYA cambió ${changes.length} modelo${changes.length > 1 ? 's' : ''} automáticamente`, html })
 }
 
 // ============================================
@@ -159,7 +161,7 @@ export async function sendModelChangeEmail(
 
 export async function sendVerificationEmail(to: string, name: string, verifyToken: string) {
   const verifyUrl = `${FRONTEND}/auth/verify?token=${verifyToken}`
-  if (!resend) { console.log('📧 [DEV] Verificación a', to, '— enlace:', verifyUrl); return }
+  if (!resend) { log.info({ to }, '[DEV] Verification email'); return }
   const html = wrap('Confirma tu correo', `
     <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:${C.graphite};">Hola ${name},</p>
     <p style="margin:0 0 20px;font-size:16px;line-height:1.7;color:${C.graphite};">
@@ -168,16 +170,11 @@ export async function sendVerificationEmail(to: string, name: string, verifyToke
     <div style="margin:28px 0;">${button('Confirmar mi correo', verifyUrl)}</div>
     <p style="margin:0;font-size:14px;line-height:1.6;color:${C.mist};">Si no creaste esta cuenta, ignora este correo.</p>
   `)
-  try {
-    await resend.emails.send({ from: FROM, to, subject: 'Confirma tu correo — DAYA AI', html })
-    console.log('✅ Email de verificación enviado a', to)
-  } catch (e: any) {
-    console.error('❌ Error enviando verificación:', e.message)
-  }
+  await safeSend({ from: FROM, to, subject: 'Confirma tu correo — DAYA AI', html })
 }
 
 export async function sendWelcomeEmail(to: string, name: string) {
-  if (!resend) { console.log('📧 [DEV] Email de bienvenida a', to, '(Resend no configurado)'); return }
+  if (!resend) { log.info({ to }, '[DEV] Welcome email'); return }
   const html = wrap('Bienvenido a DAYA AI', `
     <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:${C.graphite};">Hola ${name},</p>
     <p style="margin:0 0 20px;font-size:16px;line-height:1.7;color:${C.graphite};">
@@ -186,16 +183,11 @@ export async function sendWelcomeEmail(to: string, name: string) {
     <div style="margin:28px 0;">${button('Comenzar ahora', FRONTEND + '/dashboard')}</div>
     <p style="margin:0;font-size:14px;line-height:1.6;color:${C.mist};">Si tienes dudas, simplemente responde a este correo.</p>
   `)
-  try {
-    await resend.emails.send({ from: FROM, to, subject: 'Bienvenido a DAYA AI', html })
-    console.log('✅ Email de bienvenida enviado a', to)
-  } catch (e: any) {
-    console.error('❌ Error enviando bienvenida:', e.message)
-  }
+  await safeSend({ from: FROM, to, subject: 'Bienvenido a DAYA AI', html })
 }
 
 export async function sendPasswordResetEmail(to: string, name: string, resetToken: string) {
-  if (!resend) { console.log('📧 [DEV] Reset password a', to, '— token:', resetToken); return }
+  if (!resend) { log.info({ to }, '[DEV] Password reset email'); return }
   const resetUrl = `${FRONTEND}/auth/reset?token=${resetToken}`
   const html = wrap('Recupera tu contraseña', `
     <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:${C.graphite};">Hola ${name},</p>
@@ -205,16 +197,11 @@ export async function sendPasswordResetEmail(to: string, name: string, resetToke
     <div style="margin:28px 0;">${button('Restablecer contraseña', resetUrl)}</div>
     <p style="margin:0;font-size:14px;line-height:1.6;color:${C.mist};">Si no solicitaste esto, ignora este correo. Tu cuenta sigue segura.</p>
   `)
-  try {
-    await resend.emails.send({ from: FROM, to, subject: 'Restablece tu contraseña — DAYA AI', html })
-    console.log('✅ Email de reset enviado a', to)
-  } catch (e: any) {
-    console.error('❌ Error enviando reset:', e.message)
-  }
+  await safeSend({ from: FROM, to, subject: 'Restablece tu contraseña — DAYA AI', html })
 }
 
 export async function sendPlanUpgradeEmail(to: string, name: string, plan: string) {
-  if (!resend) { console.log('📧 [DEV] Upgrade a', plan, 'para', to); return }
+  if (!resend) { log.info({ to, plan }, '[DEV] Plan upgrade email'); return }
   const html = wrap('Plan actualizado', `
     <p style="margin:0 0 16px;font-size:16px;line-height:1.7;color:${C.graphite};">Hola ${name},</p>
     <p style="margin:0 0 20px;font-size:16px;line-height:1.7;color:${C.graphite};">
@@ -222,12 +209,7 @@ export async function sendPlanUpgradeEmail(to: string, name: string, plan: strin
     </p>
     <div style="margin:28px 0;">${button('Ir a mi cuenta', FRONTEND + '/dashboard')}</div>
   `)
-  try {
-    await resend.emails.send({ from: FROM, to, subject: `Tu plan ${plan} está activo — DAYA AI`, html })
-    console.log('✅ Email de upgrade enviado a', to)
-  } catch (e: any) {
-    console.error('❌ Error enviando upgrade:', e.message)
-  }
+  await safeSend({ from: FROM, to, subject: `Tu plan ${plan} está activo — DAYA AI`, html })
 }
 
 export function isEmailConfigured(): boolean {

@@ -1,6 +1,8 @@
 'use client'
 import { useEffect } from 'react'
+import { useLocale } from 'next-intl'
 import { useAuthStore, systemTheme } from '../store'
+import { useI18n, Lang } from '../lib/i18n'
 
 // Envuelve TODAS las rutas: transición de página + tema consistente en toda la app.
 // El script inline del layout aplica .dark antes del primer pintado; este efecto lo
@@ -11,6 +13,13 @@ import { useAuthStore, systemTheme } from '../store'
 export default function Template({ children }: { children: React.ReactNode }) {
   const themePref = useAuthStore((s) => s.themePref)
   const theme = useAuthStore((s) => s.theme)
+  const locale = useLocale()
+
+  // El store i18n es un ESPEJO del locale de next-intl (una sola fuente de verdad):
+  // así useT()/useI18n de los componentes legados siguen al LangSelector.
+  useEffect(() => {
+    if (useI18n.getState().lang !== locale) useI18n.getState().setLang(locale as Lang)
+  }, [locale])
 
   useEffect(() => {
     const apply = () => {

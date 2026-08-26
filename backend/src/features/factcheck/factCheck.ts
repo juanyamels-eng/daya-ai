@@ -81,7 +81,12 @@ async function verifyClaim(claim: string): Promise<ClaimResult> {
       `{ "verdict": "respaldada|refutada|no_concluyente", "confidence": 0..1, "explanation": "breve, citando [N] si aplica" }`,
       JUDGE_SYS
     )
-    const verdict: Verdict = ['respaldada', 'refutada', 'no_concluyente'].includes(parsed?.verdict) ? parsed.verdict : 'no_concluyente'
+    const rawVerdict = typeof parsed?.verdict === 'string' ? parsed.verdict : ''
+    const verdict: Verdict = (['respaldada', 'refutada', 'no_concluyente'] as const).includes(
+      rawVerdict as 'respaldada' | 'refutada' | 'no_concluyente'
+    )
+      ? (rawVerdict as Verdict)
+      : 'no_concluyente'
     return {
       claim, verdict,
       confidence: typeof parsed?.confidence === 'number' ? Math.max(0, Math.min(1, parsed.confidence)) : 0.5,

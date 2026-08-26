@@ -7,6 +7,11 @@ import { sendWelcomeEmail } from '../services/email'
 
 const router = Router()
 
+interface SupabaseUser {
+  email?: string
+  user_metadata?: { full_name?: string; name?: string }
+}
+
 router.post('/register', authLimiter, register)
 router.post('/login', authLimiter, login)
 router.get('/me', requireAuth, me)
@@ -16,8 +21,8 @@ router.post('/forgot', authLimiter, forgotPassword)
 router.post('/reset', authLimiter, resetPassword)
 
 // Verificación de correo
-router.post('/verify', verifyEmail)
-router.post('/resend-verification', requireAuth, resendVerification)
+router.post('/verify', authLimiter, verifyEmail)
+router.post('/resend-verification', requireAuth, authLimiter, resendVerification)
 
 // Google OAuth callback.
 // SEGURIDAD: NO confiamos en el email que manda el cliente. Verificamos el
@@ -54,14 +59,14 @@ router.post('/google', async (req, res) => {
       console.error('[auth/google] Supabase respondió', r.status, body.slice(0, 200))
       return res.status(401).json({ error: 'Sesión de Google inválida o expirada.' })
     }
-    const supaUser: any = await r.json()
+    const supaUser = (await r.json()) as SupabaseUser
     verifiedEmail = (supaUser?.email || '').toLowerCase().trim()
     verifiedName = supaUser?.user_metadata?.full_name || supaUser?.user_metadata?.name || ''
     if (!verifiedEmail) return res.status(401).json({ error: 'No se pudo verificar el correo de Google.' })
-  } catch (e: any) {
+  } catch (e) {
     // Muestra el motivo real (antes se ocultaba) para poder diagnosticar.
-    console.error('[auth/google] Falló la verificación con Supabase:', e?.message || e)
-    return res.status(502).json({ error: 'No se pudo contactar al proveedor de identidad: ' + (e?.message || 'error de red') })
+    console.error('[auth/google] Falló la verificación con Supabase:', e instanceof Error ? e.message : e)
+    return res.status(502).json({ error: 'No se pudo contactar al proveedor de identidad: ' + (e instanceof Error ? e.message : 'error de red') })
   }
 
   // Crear/obtener el usuario y emitir el token. Si la BASE DE DATOS falla,
@@ -87,9 +92,9 @@ router.post('/google', async (req, res) => {
     }
     const token = signToken(user.id)
     return res.json({ token, user: { id: user.id, name: user.name, email: user.email, plan: user.plan } })
-  } catch (e: any) {
-    console.error('[auth/google] Error de base de datos:', e?.message || e)
-    return res.status(500).json({ error: 'No se pudo acceder a la base de datos: ' + (e?.message || 'error') })
+  } catch (e) {
+    console.error('[auth/google] Error de base de datos:', e instanceof Error ? e.message : e)
+    return res.status(500).json({ error: 'No se pudo acceder a la base de datos: ' + (e instanceof Error ? e.message : 'error') })
   }
 })
 

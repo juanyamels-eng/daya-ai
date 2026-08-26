@@ -46,7 +46,7 @@ export function runPython(
     let worker: Worker | null = null
     let url = ''
     let settled = false
-    let timer: any
+    let timer: ReturnType<typeof setTimeout> | undefined
 
     const finish = (extra: Partial<RunResult>) => {
       if (settled) return

@@ -6,13 +6,15 @@ import { ADMIN_KEY, API } from '../../../lib/config'
 const PLANS = ['FREE', 'PRO']
 const PLAN_COLORS: Record<string, string> = { FREE: '#6b7280', PRO: '#27272a' }
 
+interface AdminUser { id: string; name: string; email: string; plan: string; messagesUsed: number; messagesLimit: number; createdAt: string }
+
 export default function AdminUsuarios() {
-  const [users, setUsers] = useState<any[]>([])
-  const [filtered, setFiltered] = useState<any[]>([])
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [filtered, setFiltered] = useState<AdminUser[]>([])
   const [search, setSearch] = useState('')
   const [planFilter, setPlanFilter] = useState('ALL')
   const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<any>(null)
+  const [selected, setSelected] = useState<AdminUser | null>(null)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState('')
 
@@ -37,7 +39,7 @@ export default function AdminUsuarios() {
     setLoading(false)
   }
 
-  const updateUser = async (userId: string, changes: any) => {
+  const updateUser = async (userId: string, changes: { plan?: string; messagesLimit?: number }) => {
     setSaving(true)
     try {
       await fetch(`${API}/api/system/users/${userId}`, {

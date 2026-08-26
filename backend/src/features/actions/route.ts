@@ -11,28 +11,19 @@ import { requireAuth } from '../../middleware/auth'
 import { extract, ExtractSchema } from './extract'
 import { act, ActTool } from './act'
 import { clearActionCache } from './actionEngine'
+import { toActTools } from '../agent/tools'
 
 const router = Router()
 router.use(requireAuth)
 
 // ── Built-in tools for `act` (wrap existing features) ────────────────────────
-// Each is deterministic from act's perspective (the AI only decides HOW
-// to chain them, not their implementation). Defensive: if the feature is not
-// available, they return a controlled error instead of crashing.
+// El núcleo son las herramientas del agente marcadas como `safeForAct` (buscar
+// en la web, leer URLs, calcular, resumir videos, crear diagramas…), reutilizadas
+// desde el registro central de tools. Aquí se añaden las específicas de `act`
+// (conexiones y extracción estructurada), que no viven en el agente.
 
 function builtinTools(): ActTool[] {
-  return [
-    {
-      name: 'web_search',
-      description: 'Busca en la web y devuelve resultados rankeados. args: { query, max? }',
-      run: async (args) => {
-        try {
-          const { searchAndRank } = await import('../searchrank/ranking')
-          const r = await searchAndRank(String(args.query || ''), Number(args.max) || 5)
-          return r.map(x => ({ title: x.title, url: x.url, snippet: (x.content || '').slice(0, 300) }))
-        } catch { return { error: 'searchrank no disponible' } }
-      },
-    },
+  const extras: ActTool[] = [
     {
       name: 'query_api',
       description: 'Consulta una API pública o conector (github/crypto) y devuelve datos. args: { url?, path?, connector?, arg? }',
@@ -52,6 +43,7 @@ function builtinTools(): ActTool[] {
       },
     },
   ]
+  return [...toActTools(), ...extras]
 }
 
 router.get('/tools', (_req: Request, res: Response) => {

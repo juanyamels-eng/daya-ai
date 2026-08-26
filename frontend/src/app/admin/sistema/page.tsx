@@ -1,10 +1,12 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { ADMIN_KEY, API } from '../../../lib/config'
 
+interface HealthInfo { status?: string; service?: string; version?: string }
+
 export default function AdminSistema() {
-  const [health, setHealth] = useState<any>(null)
+  const [health, setHealth] = useState<HealthInfo | null>(null)
   const [toast, setToast] = useState('')
 
   useEffect(() => {
@@ -114,7 +116,7 @@ export default function AdminSistema() {
   )
 }
 
-function Card({ title, icon, children }: any) {
+function Card({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 14, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
@@ -126,7 +128,7 @@ function Card({ title, icon, children }: any) {
   )
 }
 
-function StatusRow({ label, status, value }: any) {
+function StatusRow({ label, status, value }: { label: string; status?: boolean; value: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: '1px solid var(--border-default)' }}>
       <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{label}</span>

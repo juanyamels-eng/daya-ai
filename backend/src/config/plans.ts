@@ -12,6 +12,7 @@ export interface PlanConfig {
   priceCents: number      // for PayPal (in US dollar cents)
   messageLimit: number    // message limit
   imageLimit: number      // generated images limit
+  videoLimit: number      // generated videos limit
   searchLimit: number     // web searches limit
   studioLimit: number     // Studio designs limit
   limitPeriod: 'day' | 'month'
@@ -29,6 +30,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     priceCents: 0,
     messageLimit: 15,
     imageLimit: 10,
+    videoLimit: 2,
     searchLimit: 5,
     studioLimit: 5,
     limitPeriod: 'day',
@@ -37,6 +39,7 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     features: [
       '15 mensajes al día',
       '10 imágenes al día',
+      '2 videos al día',
       '5 búsquedas web al día',
       '5 diseños en Studio al día',
       'Selección automática del modelo adecuado',
@@ -50,21 +53,23 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     priceCents: 1300,
     messageLimit: 3000,
     imageLimit: 1000,
+    videoLimit: 50,
     searchLimit: 400,
     studioLimit: 500,
     limitPeriod: 'month',
-    docLimit: -1,          // unlimited (with internal anti-abuse ceiling)
+    docLimit: -1,
     matrixLevel: 'PRO',
     features: [
       '3.000 mensajes al mes',
       '1.000 imágenes al mes',
+      '50 videos al mes',
       '400 búsquedas web al mes',
       '500 diseños en Studio al mes',
       'Modelos top + pensamiento profundo',
       'DAYA Code: agente de programación en tu terminal',
       'Documentos ilimitados + soporte prioritario',
     ],
-    highlight: true, // this is the plan highlighted in /planes (BETA is not public)
+    highlight: true,
   },
 }
 

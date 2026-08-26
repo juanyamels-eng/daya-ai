@@ -21,12 +21,12 @@ router.use(requireAuth)
 const VALID_KINDS: JobKind[] = ['inbox-scan', 'task-due', 'watcher']
 
 router.get('/jobs', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   res.json({ jobs: await getJobs(userId) })
 })
 
 router.post('/jobs', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { kind, intervalMin, config, label } = req.body || {}
   if (!VALID_KINDS.includes(kind)) {
     return res.status(400).json({ error: 'Tipo de tarea no válido.' })
@@ -39,45 +39,45 @@ router.post('/jobs', async (req: Request, res: Response) => {
     const job = await addJob(userId, kind, Number(intervalMin) || 60, config || {}, label)
     await registerActiveUser(userId)
     res.json({ job })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo crear la tarea.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'No se pudo crear la tarea.' })
   }
 })
 
 router.patch('/jobs/:id', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { enabled } = req.body || {}
   try {
     await toggleJob(userId, req.params.id, enabled !== false)
     res.json({ ok: true })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo actualizar.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'No se pudo actualizar.' })
   }
 })
 
 router.delete('/jobs/:id', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     await deleteJob(userId, req.params.id)
     res.json({ ok: true })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo borrar.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'No se pudo borrar.' })
   }
 })
 
 router.get('/notifications', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   res.json({ notifications: await getNotifications(userId) })
 })
 
 router.post('/notifications/:id/read', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   await markNotificationRead(userId, req.params.id)
   res.json({ ok: true })
 })
 
 router.delete('/notifications', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   await clearNotifications(userId)
   res.json({ ok: true })
 })

@@ -7,6 +7,8 @@ const API = process.env.NEXT_PUBLIC_API_URL || ''
 const MONTHS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const DOW = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
+interface CalEvent { id: string; title: string; start: string; allDay?: boolean; notes?: string }
+
 // OJO: fecha LOCAL, no toISOString() (UTC). Con UTC, en husos como Perú (UTC-5) desde
 // las ~7pm "hoy" caía en el día siguiente: el resaltado del calendario se corría un
 // día y los eventos de la noche se agrupaban en la fecha equivocada.
@@ -18,13 +20,13 @@ export default function CalendarWorkspace() {
   const today = new Date()
   const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1))
   const [selected, setSelected] = useState<Date>(today)
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<CalEvent[]>([])
   const [title, setTitle] = useState('')
   const [time, setTime] = useState('')
   const [notes, setNotes] = useState('')
   const [showNotes, setShowNotes] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [editEvent, setEditEvent] = useState<any>(null)
+  const [editEvent, setEditEvent] = useState<CalEvent | null>(null)
   const [editForm, setEditForm] = useState({ title: '', time: '', notes: '' })
 
   const load = async () => {
@@ -63,7 +65,7 @@ export default function CalendarWorkspace() {
     calendarAPI.deleteEvent(id).catch(() => {})
   }
 
-  const openEdit = (ev: any) => {
+  const openEdit = (ev: CalEvent) => {
     setEditEvent(ev)
     const d = new Date(ev.start)
     const timeStr = ev.allDay ? '' : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
@@ -73,7 +75,7 @@ export default function CalendarWorkspace() {
   const saveEdit = async () => {
     if (!editEvent || !editForm.title.trim()) return
     const start = new Date(editEvent.start)
-    let allDay = !editForm.time
+    const allDay = !editForm.time
     if (editForm.time) {
       const [h, m] = editForm.time.split(':').map(Number)
       start.setHours(h || 0, m || 0, 0, 0)

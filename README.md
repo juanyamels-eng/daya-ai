@@ -86,6 +86,7 @@ Open [http://localhost:3000](http://localhost:3000).
 - **Export** to PDF, Word, Excel, and presentations
 - **Voice mode** with native dictation (Web Speech API)
 - **Coding agent** (Daya Code) that runs in your terminal
+- **MCP server**: expose Daya's tools to any MCP client (Claude Desktop, OpenCode…) — `cd backend && npm run mcp`
 - **Admin panel** at `/admin`
 
 ## Structure

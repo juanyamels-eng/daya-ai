@@ -2,6 +2,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import type { AxiosError } from 'axios'
 import { authAPI } from '../../../lib/api'
 import { useAuthStore } from '../../../store'
 import { AuthBackground, AuthStyles, Spinner, Eye, EyeOff, DayaLogo } from '../../../components/auth/AuthChrome'
@@ -32,8 +33,9 @@ function ResetContent() {
       setToken(res.data.token)
       setUser(res.data.user)
       router.replace('/dashboard')
-    } catch (e: any) {
-      setError(e.response?.data?.error || 'El enlace expiró o no es válido.')
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ error?: string }>
+      setError(err.response?.data?.error || 'El enlace expiró o no es válido.')
     } finally { setLoading(false) }
   }
 

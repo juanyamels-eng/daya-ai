@@ -5,6 +5,7 @@
 // Si el JSON es inválido, cae al código en texto plano — nunca rompe el chat.
 import { useEffect, useRef, useState } from 'react'
 import Chart from 'chart.js/auto'
+import type { ChartType } from 'chart.js'
 import { useAuthStore } from '../../store'
 
 // Paleta de marca (violeta) + acompañantes vivos.
@@ -28,7 +29,7 @@ export default function ChartBlock({ code }: { code: string }) {
     } catch { setFailed(true); return }
 
     const rawType = String(spec.type || 'bar').toLowerCase()
-    const chartType = rawType === 'donut' ? 'doughnut' : rawType
+    const chartType = (rawType === 'donut' ? 'doughnut' : rawType) as ChartType
     const isPie = chartType === 'pie' || chartType === 'doughnut'
     const labels = Array.isArray(spec.labels) ? spec.labels.map(String) : []
     const dsIn = Array.isArray(spec.datasets) ? spec.datasets : []
@@ -55,8 +56,8 @@ export default function ChartBlock({ code }: { code: string }) {
     let chart: Chart
     try {
       chart = new Chart(canvas, {
-        type: chartType as any,
-        data: { labels, datasets: datasets as any },
+        type: chartType,
+        data: { labels, datasets },
         options: {
           responsive: true, maintainAspectRatio: false,
           animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : { duration: 600 },

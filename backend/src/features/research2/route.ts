@@ -15,7 +15,7 @@ router.use(requireAuth)
 // Arranque con streaming SSE de progreso en vivo.
 router.post('/start', async (req: Request, res: Response) => {
   const { topic, rounds } = req.body as { topic?: string; rounds?: number }
-  const userId = (req as any).userId
+  const userId = req.userId
   if (!topic || !String(topic).trim()) {
     return res.status(400).json({ error: 'Falta el tema (topic).' })
   }
@@ -61,14 +61,14 @@ router.post('/run', async (req: Request, res: Response) => {
   try {
     const report = await runResearch(String(topic).trim(), { rounds })
     res.json({ report })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La investigación falló.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'La investigación falló.' })
   }
 })
 
 // Estado de una investigación (clave para sobrevivir a refrescos).
 router.get('/:id', (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const cur = getResearch(userId, req.params.id)
   if (!cur) return res.status(404).json({ error: 'No encontrada.' })
   res.json(cur)
@@ -76,14 +76,14 @@ router.get('/:id', (req: Request, res: Response) => {
 
 // Cancelar.
 router.post('/:id/cancel', (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const ok = cancelResearch(userId, req.params.id)
   res.json({ cancelled: ok })
 })
 
 // Lista de investigaciones del usuario.
 router.get('/', (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   res.json({ items: listResearch(userId) })
 })
 

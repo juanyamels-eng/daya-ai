@@ -1,0 +1,20 @@
+# Code Owners for DAYA IA
+# These owners will be automatically requested for review
+# when a pull request modifies matching files.
+
+# Default owners for everything
+* @GrupoSH
+
+# Backend
+/backend/ @GrupoSH
+
+# Frontend
+/frontend/ @GrupoSH
+
+# CLI (Daya Code)
+/cli/ @GrupoSH
+
+# Infrastructure
+/docker/ @GrupoSH
+/.github/ @GrupoSH
+/scripts/ @GrupoSH

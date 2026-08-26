@@ -5,6 +5,20 @@
 // sea 100% confiable sin depender de enlaces externos al renderizar.
 // ============================================================
 
+// Formas mínimas de las respuestas de las APIs de imágenes
+interface UnsplashSearch {
+  results?: Array<{ urls?: { regular?: string } }>
+}
+interface PexelsSearch {
+  photos?: Array<{ src?: { large?: string } }>
+}
+interface WikimediaSearch {
+  query?: { search?: Array<{ title?: string }> }
+}
+interface WikimediaInfo {
+  query?: { pages?: Record<string, { imageinfo?: Array<{ thumbwidth?: number; thumburl?: string; url?: string }> }> }
+}
+
 // 1) Encuentra VARIAS imágenes candidatas para una búsqueda (para no repetir)
 export async function findImageCandidates(query: string): Promise<string[]> {
   const q = encodeURIComponent(query)
@@ -16,8 +30,8 @@ export async function findImageCandidates(query: string): Promise<string[]> {
         `https://api.unsplash.com/search/photos?query=${q}&per_page=8&orientation=landscape&content_filter=high`,
         { headers: { Authorization: `Client-ID ${process.env.UNSPLASH_ACCESS_KEY}` } }
       )
-      const data = await res.json() as any
-      const urls = (data.results || []).map((r: any) => r?.urls?.regular).filter(Boolean)
+      const data = await res.json() as UnsplashSearch
+      const urls = (data.results || []).map((r) => r?.urls?.regular).filter((u): u is string => !!u)
       if (urls.length) return urls
     }
   } catch {}
@@ -29,8 +43,8 @@ export async function findImageCandidates(query: string): Promise<string[]> {
         `https://api.pexels.com/v1/search?query=${q}&per_page=8&orientation=landscape`,
         { headers: { Authorization: process.env.PEXELS_API_KEY } }
       )
-      const data = await res.json() as any
-      const urls = (data.photos || []).map((p: any) => p?.src?.large).filter(Boolean)
+      const data = await res.json() as PexelsSearch
+      const urls = (data.photos || []).map((p) => p?.src?.large).filter((u): u is string => !!u)
       if (urls.length) return urls
     }
   } catch {}
@@ -79,39 +93,33 @@ async function searchWikimediaMany(query: string): Promise<string[]> {
     const searchQuery = encodeURIComponent(query)
     const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${searchQuery}&srnamespace=6&srlimit=8&format=json&origin=*`
     const searchRes = await fetch(searchUrl)
-    const searchData = await searchRes.json() as any
+    const searchData = await searchRes.json() as WikimediaSearch
     const results = searchData?.query?.search
     if (!results || results.length === 0) return []
 
-    const imageResults = results.filter((r: any) =>
-      r.title && (r.title.toLowerCase().includes('.jpg') || r.title.toLowerCase().includes('.png'))
+    const imageResults = results.filter((r): r is { title: string } =>
+      !!r.title && (r.title.toLowerCase().includes('.jpg') || r.title.toLowerCase().includes('.png'))
     )
     if (imageResults.length === 0) return []
 
     // Resuelve la URL real de cada archivo (en paralelo)
-    const urls = await Promise.all(imageResults.slice(0, 6).map(async (r: any) => {
+    const urls = await Promise.all(imageResults.slice(0, 6).map(async (r) => {
       try {
         const fileName = encodeURIComponent(r.title.replace('File:', ''))
         const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=File:${fileName}&prop=imageinfo&iiprop=url|size&iiurlwidth=1200&format=json&origin=*`
         const infoRes = await fetch(infoUrl)
-        const infoData = await infoRes.json() as any
+        const infoData = await infoRes.json() as WikimediaInfo
         const pages = infoData?.query?.pages
         if (!pages) return null
-        const page = Object.values(pages)[0] as any
+        const page = Object.values(pages)[0]
         const width = page?.imageinfo?.[0]?.thumbwidth || 0
         if (width < 400) return null
         return page?.imageinfo?.[0]?.thumburl || page?.imageinfo?.[0]?.url || null
       } catch { return null }
     }))
 
-    return urls.filter(Boolean) as string[]
+    return urls.filter((u): u is string => !!u)
   } catch {
     return []
   }
-}
-
-// Wikimedia Commons API — una sola imagen (compatibilidad)
-async function searchWikimedia(query: string): Promise<string | null> {
-  const many = await searchWikimediaMany(query)
-  return many[0] || null
 }

@@ -9,7 +9,7 @@
 // ============================================
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../../middleware/auth'
-import { startRun, resumeRun, listGraphs, registerGraph } from './runner'
+import { startRun, resumeRun, listGraphs } from './runner'
 import { loadCheckpoint, listRuns } from './checkpointer'
 import { registerCragFlow } from './cragFlow'
 

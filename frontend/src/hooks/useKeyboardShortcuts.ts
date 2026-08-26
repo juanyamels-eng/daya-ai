@@ -67,6 +67,7 @@ export const SHORTCUT_HELP: { keys: string[]; label: string }[] = [
   { keys: ['Ctrl', '↵'], label: 'Enviar el mensaje' },
   { keys: ['Ctrl', 'F'], label: 'Buscar dentro de la conversación' },
   { keys: ['/'], label: 'Buscar entre tus conversaciones' },
+  { keys: ['Ctrl', 'B'], label: 'Ocultar/Mostrar panel lateral' },
   { keys: ['N'], label: 'Conversación nueva' },
   { keys: ['?'], label: 'Ver esta ayuda' },
   { keys: ['Esc'], label: 'Cerrar lo que esté abierto' },

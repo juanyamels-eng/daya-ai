@@ -14,9 +14,9 @@ router.use(requireAuth)
 router.get('/usage', async (req: Request, res: Response) => {
   const days = Math.max(1, Math.min(Number(req.query.days) || 30, 120))
   try {
-    res.json(await getUsageSummary((req as any).userId, days))
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo cargar el uso.' })
+    res.json(await getUsageSummary(req.userId, days))
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'No se pudo cargar el uso.' })
   }
 })
 
@@ -25,7 +25,7 @@ router.post('/track', async (req: Request, res: Response) => {
   const { model, inputTokens, outputTokens, inputText, outputText, feature } = req.body || {}
   if (!model) return res.status(400).json({ error: 'Falta model.' })
   const cost = await trackUsage({
-    userId: (req as any).userId, model,
+    userId: req.userId, model,
     inputTokens, outputTokens, inputText, outputText, feature,
   })
   res.json({ ok: true, costUsd: cost })

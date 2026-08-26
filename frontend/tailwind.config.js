@@ -4,6 +4,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Tokens tipo shadcn mapeados al sistema de diseño Daya (globals.css).
+        // Así las clases text-muted-foreground, bg-background, border-input…
+        // siguen el tema claro/oscuro de la app en vez de romperse.
+        border: 'var(--border-default)',
+        input: 'var(--border-strong)',
+        ring: 'var(--brand)',
+        background: 'var(--bg-base)',
+        foreground: 'var(--text-primary)',
+        primary: { DEFAULT: 'var(--brand)', foreground: '#ffffff' },
+        secondary: { DEFAULT: 'var(--bg-elevated)', foreground: 'var(--text-primary)' },
+        muted: { DEFAULT: 'var(--bg-surface)', foreground: 'var(--text-tertiary)' },
+        accent: { DEFAULT: 'var(--bg-elevated)', foreground: 'var(--text-primary)' },
+        destructive: { DEFAULT: 'var(--red)', foreground: '#ffffff' },
+        card: { DEFAULT: 'var(--bg-surface)', foreground: 'var(--text-primary)' },
+        popover: { DEFAULT: 'var(--bg-elevated)', foreground: 'var(--text-primary)' },
         daya: {
           50:  '#f0f0ff',
           100: '#e0e0ff',

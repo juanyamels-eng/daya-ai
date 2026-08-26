@@ -759,7 +759,7 @@ function ImageSearchPanel({ editor }: { editor: any }) {
         <button onClick={search} disabled={!query.trim() || busy} style={{ padding: '7px 12px', borderRadius: 6, border: 'none', background: query.trim() && !busy ? 'var(--brand)' : 'var(--bg-elevated)', color: query.trim() && !busy ? '#fff' : 'var(--text-tertiary)', fontSize: '0.72rem', fontWeight: 700, cursor: query.trim() && !busy ? 'pointer' : 'not-allowed', fontFamily: 'var(--font-body)' }}>{busy ? '⋯' : 'Buscar'}</button>
       </div>
       {results.length > 0 && (
-        <div style={{ padding: '6px 10px', fontSize: '0.65rem', color: 'var(--text-tertiary)', letterSpacing: '0.05em' }}>{results.length} resultados para "{query}"</div>
+        <div style={{ padding: '6px 10px', fontSize: '0.65rem', color: 'var(--text-tertiary)', letterSpacing: '0.05em' }}>{results.length} resultados para &quot;{query}&quot;</div>
       )}
       <div style={{ flex: 1, overflow: 'auto', padding: '8px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, alignContent: 'start' }}>
         {results.length === 0 && !busy && (
@@ -803,7 +803,6 @@ function handleStudioAction(
 
   if (type === 'create_webpage' || type === 'create_ui') {
     if (editor) {
-      const desc = params.description || 'página web'
       const tpl = TEMPLATES.find(t => t.id === 'hero-section') || TEMPLATES[0]
       editor.runCommand(`load-template-${tpl.id}`)
     }

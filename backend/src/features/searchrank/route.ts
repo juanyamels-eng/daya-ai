@@ -24,8 +24,8 @@ router.post('/', async (req: Request, res: Response) => {
     const n = Math.max(1, Math.min(Number(maxResults) || 5, 15))
     const results = await searchAndRank(String(query).trim(), n, { withBreakdown: !!withBreakdown })
     res.json({ query, count: results.length, results })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La búsqueda falló.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'La búsqueda falló.' })
   }
 })
 

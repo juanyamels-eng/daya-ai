@@ -1,19 +1,19 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { LayoutDashboard, Users, Brain, Settings, Lock, LogOut } from 'lucide-react'
 
 const ADMIN_KEY = process.env.NEXT_PUBLIC_ADMIN_KEY || ''
 
 const NAV = [
-  { href: '/admin', label: 'Dashboard', icon: '📊', exact: true },
-  { href: '/admin/usuarios', label: 'Usuarios', icon: '👥' },
-  { href: '/admin/entrenamiento', label: 'Entrenamiento', icon: '🧠' },
-  { href: '/admin/sistema', label: 'Sistema', icon: '⚙️' },
+  { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { href: '/admin/usuarios', label: 'Usuarios', icon: Users },
+  { href: '/admin/entrenamiento', label: 'Entrenamiento', icon: Brain },
+  { href: '/admin/sistema', label: 'Sistema', icon: Settings },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const pathname = usePathname()
   const [authorized, setAuthorized] = useState(false)
   const [keyInput, setKeyInput] = useState('')
@@ -39,8 +39,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-base)', fontFamily: 'var(--font-body)' }}>
         <div style={{ width: 360, animation: 'fadeUp 0.4s ease' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-              <span style={{ fontSize: 22 }}>🔐</span>
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--bg-elevated)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', color: 'var(--accent-500)' }}>
+              <Lock size={22} strokeWidth={1.8} />
             </div>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 400, color: 'var(--text-primary)', marginBottom: 6 }}>Panel de Administración</h1>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-tertiary)' }}>Acceso restringido · Solo para administradores</p>
@@ -85,10 +85,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav style={{ padding: '10px 8px', flex: 1 }}>
           {NAV.map(item => {
             const active = item.exact ? pathname === item.href : pathname.startsWith(item.href)
+            const Icon = item.icon
             return (
               <Link key={item.href} href={item.href}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 9, marginBottom: 2, textDecoration: 'none', fontSize: '0.83rem', fontWeight: active ? 600 : 400, color: active ? 'var(--text-primary)' : 'var(--text-secondary)', background: active ? 'var(--bg-elevated)' : 'transparent', borderLeft: `2px solid ${active ? 'var(--accent-500)' : 'transparent'}`, transition: 'all 0.15s' }}>
-                <span style={{ fontSize: 15 }}>{item.icon}</span>{item.label}
+                <Icon size={15} strokeWidth={1.8} style={{ color: active ? 'var(--accent-500)' : 'var(--text-tertiary)', flexShrink: 0 }} />{item.label}
               </Link>
             )
           })}
@@ -102,7 +103,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
           <button onClick={() => { sessionStorage.removeItem('daya-admin-auth'); setAuthorized(false) }}
             style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px', borderRadius: 8, marginTop: 2, width: '100%', textAlign: 'left' }}>
-            🔐 Cerrar sesión admin
+            <LogOut size={13} strokeWidth={2} /> Cerrar sesión admin
           </button>
         </div>
       </div>

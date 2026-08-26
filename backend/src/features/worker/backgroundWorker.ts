@@ -27,7 +27,7 @@
 import { prisma } from '../../lib/prisma'
 import { loadConfig, saveConfig } from '../../services/configStore'
 
-const db = prisma as any
+const db = prisma
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -128,7 +128,7 @@ export async function deleteJob(userId: string, id: string): Promise<void> {
 // any notification was generated (only for metrics/log).
 
 // 1) Inbox scan: uses the email feature if configured.
-async function runInboxScan(userId: string, job: Job): Promise<boolean> {
+async function runInboxScan(userId: string, _job: Job): Promise<boolean> {
   try {
     const acc = await db.emailAccount.findUnique({ where: { userId } })
     if (!acc) return false // no IMAP account configured → nothing to do

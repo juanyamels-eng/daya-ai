@@ -16,7 +16,9 @@ export default function ImageEditorWorkspace() {
   const [sel, setSel] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const dragStart = useRef<{ x: number; y: number } | null>(null)
   const [imgHistory, setImgHistory] = useState<{ id: string; url: string; date: number }[]>([])
-  useEffect(() => { try { const h = localStorage.getItem('daya_imgedit_history'); if (h) setImgHistory(JSON.parse(h)) } catch {} }, [])
+  useEffect(() => {
+    try { const h = localStorage.getItem('daya_imgedit_history'); if (h) setImgHistory(JSON.parse(h)) } catch {}
+  }, [])
   const saveImgToHistory = (url: string) => {
     setImgHistory(prev => {
       let next = [{ id: Date.now().toString(), url, date: Date.now() }, ...prev].slice(0, 8)

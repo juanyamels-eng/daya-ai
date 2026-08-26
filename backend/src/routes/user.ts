@@ -2,39 +2,46 @@ import { Router } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { prisma } from '../lib/prisma'
 import { clearUserCache } from '../services/memory'
+import { logger } from '../services/logger'
 
 const router = Router()
 router.use(requireAuth)
 
 router.get('/memories', async (req, res) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     const memories = await prisma.memory.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } })
     res.json(memories)
-  } catch (e: any) {
+  } catch {
     res.status(500).json({ error: 'Could not load memories.' })
   }
 })
 
 router.delete('/memories/:id', async (req, res) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     await prisma.memory.deleteMany({ where: { id: req.params.id, userId } })
     res.json({ success: true })
-  } catch (e: any) {
+  } catch {
     res.status(500).json({ error: 'Could not delete memory.' })
   }
 })
 
 router.patch('/profile', async (req, res) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { name, profession, interests, language, tone, length, responseLength } = req.body
   try {
     if (typeof name === 'string' && name.trim()) {
       await prisma.user.update({ where: { id: userId }, data: { name: name.trim().slice(0, 50) } })
     }
 
-    const profileData: any = {}
+    const profileData: {
+      profession?: string
+      interests?: string[]
+      language?: string
+      tone?: string
+      responseLength?: string
+    } = {}
     if (profession !== undefined) profileData.profession = profession
     if (Array.isArray(interests)) profileData.interests = interests
     if (language !== undefined) profileData.language = language
@@ -49,14 +56,14 @@ router.patch('/profile', async (req, res) => {
     })
     clearUserCache(userId)
     res.json({ success: true, profile })
-  } catch (e: any) {
+  } catch {
     res.status(500).json({ error: 'Could not save profile.' })
   }
 })
 
 // Export all user data (access right — Law 29733)
 router.get('/export-data', async (req, res) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     const [user, profile, conversations, memories] = await Promise.all([
       prisma.user.findUnique({
@@ -77,14 +84,14 @@ router.get('/export-data', async (req, res) => {
     ])
     res.setHeader('Content-Disposition', 'attachment; filename="mis-datos-daya.json"')
     res.json({ exportedAt: new Date().toISOString(), user, profile, conversations, memories })
-  } catch (e: any) {
+  } catch {
     res.status(500).json({ error: 'Could not export data.' })
   }
 })
 
 // Delete the account and ALL associated data (right to erasure — Law 29733)
 router.delete('/account', async (req, res) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     // Delete first the tables that store userId without formal relation (no cascade)
     await prisma.libraryDocument.deleteMany({ where: { userId } }).catch(() => {})
@@ -92,14 +99,14 @@ router.delete('/account', async (req, res) => {
     // The rest (conversations, messages, profile, memories) is handled by onDelete: Cascade
     await prisma.user.delete({ where: { id: userId } })
     res.json({ success: true, message: 'Tu cuenta y todos tus datos han sido eliminados permanentemente.' })
-  } catch (error: any) {
-    res.status(500).json({ error: 'Could not delete account: ' + error.message })
+  } catch (error) {
+    res.status(500).json({ error: 'Could not delete account: ' + (error instanceof Error ? error.message : String(error)) })
   }
 })
 
 // Upload/update avatar (data URI base64). Saved in the profile.
 router.post('/avatar', async (req, res) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { avatar } = req.body
   if (!avatar || typeof avatar !== 'string' || !avatar.startsWith('data:image/')) {
     return res.status(400).json({ error: 'Invalid image' })
@@ -114,14 +121,14 @@ router.post('/avatar', async (req, res) => {
       where: { userId }, update: { avatarUrl: avatar }, create: { userId, avatarUrl: avatar },
     })
     res.json({ success: true, avatarUrl: avatar })
-  } catch (e: any) {
+  } catch {
     res.status(500).json({ error: 'Could not save avatar.' })
   }
 })
 
 // Support / issue report
 router.post('/support', async (req, res) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { message } = req.body
   if (!message || !message.trim()) {
     return res.status(400).json({ error: 'El mensaje no puede estar vacío' })
@@ -130,9 +137,9 @@ router.post('/support', async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } })
 
   // Log the report
-  console.log('📨 [SOPORTE] Nuevo reporte de', user?.email || userId)
-  console.log('   Usuario:', user?.name)
-  console.log('   Mensaje:', message.trim())
+  logger.info(`📨 [SOPORTE] Nuevo reporte de ${user?.email || userId}`)
+  logger.info(`   Usuario: ${user?.name}`)
+  logger.info(`   Mensaje: ${message.trim()}`)
 
   res.json({ success: true, message: 'Reporte recibido. Gracias por tu retroalimentación.' })
 })

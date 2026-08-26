@@ -14,7 +14,7 @@
 
 import { chatJSON, chatSingle } from '../../services/openrouter'
 import {
-  Project, Issue, IssueState, IssuePriority, addIssue, getProject, computeProgress,
+  Project, Issue, IssuePriority, addIssue, computeProgress,
 } from './projectStore'
 
 // ── Extraer issues de texto libre ────────────────────────────────────────────
@@ -114,7 +114,7 @@ export async function statusSummary(project: Project): Promise<string> {
       'claude',
       'Eres un jefe de proyecto que da reportes de estado concisos, honestos y accionables.'
     )
-  } catch (e: any) {
+  } catch {
     return `Progreso: ${prog.completionPct}%. ${prog.byState.in_progress} en curso, ${prog.overdue} vencidos, ${prog.blocked} bloqueados.`
   }
 }

@@ -108,6 +108,12 @@ export async function indexDocument(userId: string, docId: string, source: strin
       stored++
     } catch { /* continúa con el siguiente */ }
   }
+
+  // Background: extract entities and store in knowledge graph (fire-and-forget)
+  if (stored > 0) {
+    import('../graphrag/sync').then(m => m.processTextForGraph(userId, text, docId, 'document')).catch(() => {})
+  }
+
   return stored
 }
 

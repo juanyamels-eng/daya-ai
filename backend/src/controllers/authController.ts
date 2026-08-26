@@ -6,6 +6,13 @@ import { z } from 'zod'
 import { promises as dns } from 'dns'
 import { prisma } from '../lib/prisma'
 import { sendWelcomeEmail, sendPasswordResetEmail, sendVerificationEmail } from '../services/email'
+import { isBlocked, recordFailedAttempt, recordSuccessfulAttempt } from '../middleware/bruteForce'
+import { auditLog } from '../services/auditLog'
+
+// IP del cliente para el control de fuerza bruta (respeta proxy si está configurado)
+function clientIp(req: Request): string {
+  return req.ip || req.socket?.remoteAddress || 'unknown'
+}
 
 // Dominios de correo temporal/desechable más comunes — no se permite registrar con ellos
 const DISPOSABLE_DOMAINS = new Set([
@@ -29,9 +36,10 @@ async function emailDomainIsReal(email: string): Promise<{ ok: boolean; reason?:
     const mx = await Promise.race([lookup, timeout]) as { exchange: string }[]
     if (!mx || mx.length === 0) return { ok: false, reason: 'Ese dominio de correo no existe o no puede recibir correos. Revisa que esté bien escrito.' }
     return { ok: true }
-  } catch (e: any) {
+  } catch (e) {
     // Sin registros MX → dominio no recibe correo → correo falso
-    if (e?.code === 'ENOTFOUND' || e?.code === 'ENODATA') {
+    const code = (e as NodeJS.ErrnoException)?.code
+    if (code === 'ENOTFOUND' || code === 'ENODATA') {
       return { ok: false, reason: 'Ese dominio de correo no existe. Revisa que esté bien escrito.' }
     }
     // Timeout u otro error de DNS: no bloqueamos al usuario (fail-open)
@@ -40,7 +48,7 @@ async function emailDomainIsReal(email: string): Promise<{ ok: boolean; reason?:
 }
 
 const registerSchema = z.object({
-  name: z.string().min(2).max(50),
+  name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres').max(50),
   email: z.string().email(),
   password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(100),
 })
@@ -55,7 +63,7 @@ const loginSchema = z.object({
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '3650d'
 
 export function signToken(userId: string) {
-  return jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: JWT_EXPIRES_IN as any })
+  return jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] })
 }
 
 export async function register(req: Request, res: Response) {
@@ -82,6 +90,7 @@ export async function register(req: Request, res: Response) {
   const token = signToken(user.id)
   sendVerificationEmail(email, name, verifyToken).catch(() => {})
   sendWelcomeEmail(email, name).catch(() => {})
+  auditLog({ userId: user.id, action: 'auth.register', ip: clientIp(req), success: true }).catch(() => {})
   res.status(201).json({ token, user: { id: user.id, name: user.name, email: user.email, plan: user.plan, emailVerified: false } })
 }
 
@@ -102,7 +111,7 @@ export async function verifyEmail(req: Request, res: Response) {
 
 // Reenvía el correo de verificación al usuario autenticado
 export async function resendVerification(req: Request, res: Response) {
-  const userId = (req as any).userId
+  const userId = req.userId
   const user = await prisma.user.findUnique({ where: { id: userId } })
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
   if (user.emailVerified) return res.json({ success: true, message: 'Tu correo ya está verificado' })
@@ -120,11 +129,24 @@ export async function login(req: Request, res: Response) {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.errors[0]?.message || 'Datos inválidos' })
   const email = parsed.data.email.toLowerCase().trim()
   const { password } = parsed.data
+  const ip = clientIp(req)
+
+  // Protección contra fuerza bruta: bloqueo por IP y por cuenta tras N fallos
+  const ipBlock = isBlocked('ip', ip)
+  const emailBlock = isBlocked('email', email)
+  if (ipBlock.blocked || emailBlock.blocked) {
+    const retryAfterMs = Math.max(ipBlock.retryAfterMs, emailBlock.retryAfterMs)
+    res.setHeader('Retry-After', Math.ceil(retryAfterMs / 1000))
+    return res.status(429).json({ error: `Demasiados intentos fallidos. Inténtalo de nuevo en ${Math.ceil(retryAfterMs / 60000)} minutos.` })
+  }
 
   const user = await prisma.user.findUnique({ where: { email } })
   // Mensaje genérico para no revelar si el email existe (evita enumeración de cuentas)
   const GENERIC = 'Email o contraseña incorrectos.'
-  if (!user) return res.status(401).json({ error: GENERIC })
+  if (!user) {
+    recordFailedAttempt('ip', ip)
+    return res.status(401).json({ error: GENERIC })
+  }
 
   // Cuenta creada con Google (sin contraseña): guiar al usuario al método correcto
   if (!user.passwordHash) {
@@ -132,21 +154,34 @@ export async function login(req: Request, res: Response) {
   }
 
   const ok = await bcrypt.compare(password, user.passwordHash)
-  if (!ok) return res.status(401).json({ error: GENERIC })
+  if (!ok) {
+    const fail = recordFailedAttempt('email', email)
+    recordFailedAttempt('ip', ip)
+    if (fail.blocked) {
+      res.setHeader('Retry-After', Math.ceil(fail.retryAfterMs / 1000))
+      return res.status(429).json({ error: `Demasiados intentos fallidos. Cuenta bloqueada temporalmente ${Math.ceil(fail.retryAfterMs / 60000)} minutos.` })
+    }
+    return res.status(401).json({ error: GENERIC })
+  }
+
+  // Login correcto: limpia los contadores de fallos de IP y cuenta
+  recordSuccessfulAttempt('ip', ip)
+  recordSuccessfulAttempt('email', email)
+  auditLog({ userId: user.id, action: 'auth.login', ip, success: true }).catch(() => {})
 
   const token = signToken(user.id)
   res.json({ token, user: { id: user.id, name: user.name, email: user.email, plan: user.plan, emailVerified: user.emailVerified } })
 }
 
 export async function me(req: Request, res: Response) {
-  const userId = (req as any).userId
+  const userId = req.userId
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true, name: true, email: true, plan: true, messagesUsed: true, messagesLimit: true, avatarUrl: true, emailVerified: true, createdAt: true, profile: true }
   })
   if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
   // Usa el avatar del usuario o el del perfil (Google) como respaldo
-  const avatarUrl = user.avatarUrl || (user as any).profile?.avatarUrl || null
+  const avatarUrl = user.avatarUrl || user.profile?.avatarUrl || null
   res.json({ ...user, avatarUrl })
 }
 
@@ -201,6 +236,7 @@ export async function resetPassword(req: Request, res: Response) {
     where: { id: user.id },
     data: { passwordHash, resetToken: null, resetExpires: null },
   })
+  auditLog({ userId: user.id, action: 'auth.password_reset', ip: clientIp(req), success: true }).catch(() => {})
 
   const authToken = signToken(user.id)
   res.json({

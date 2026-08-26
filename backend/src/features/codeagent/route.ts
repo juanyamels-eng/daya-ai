@@ -13,6 +13,7 @@
 // Auth por token de API de DAYA → la clave de OpenRouter nunca sale del servidor.
 // ============================================
 import { Router, Request, Response } from 'express'
+import type OpenAI from 'openai'
 import { requireApiToken } from '../../middleware/apiTokenAuth'
 import { chatBurstLimiter } from '../../middleware/rateLimiter'
 import getClient, { MODELS } from '../../services/openrouter'
@@ -23,6 +24,28 @@ import { trackUsage } from '../insights/usageTracker'
 
 const router = Router()
 router.use(requireApiToken)
+
+// Usuario con campos de uso, tal y como los esperan los servicios de cuota.
+interface UsageUser {
+  id: string
+  plan: PlanId
+  planExpiresAt: Date | null
+  usageResetAt: Date | null
+  messagesUsed: number
+  imagesUsed: number
+  searchesUsed: number
+  studioUsed: number
+  documentsUsed: number
+}
+
+// Mensaje del CLI (formato OpenAI: role + content string o partes multimodales).
+interface CliContentPart {
+  type?: string
+}
+interface CliMessage {
+  role?: string
+  content?: string | CliContentPart[]
+}
 
 // Acceso y cuota en una pasada:
 //  - DAYA Code es EXCLUSIVO de los planes con nivel PRO (Pro y Team) → 403 si no.
@@ -36,7 +59,7 @@ async function checkAccess(userId: string, isNewTask: boolean): Promise<{ ok: bo
       id: true, plan: true, planExpiresAt: true, usageResetAt: true,
       messagesUsed: true, imagesUsed: true, searchesUsed: true, studioUsed: true, documentsUsed: true,
     },
-  }) as any
+  }) as UsageUser | null
   if (!user) return { ok: false, status: 401, error: 'Usuario no encontrado.' }
   const plan = await resolveEffectivePlan(user)
   if (getMatrixLevel(plan as PlanId) !== 'PRO') {
@@ -64,16 +87,16 @@ async function checkAccess(userId: string, isNewTask: boolean): Promise<{ ok: bo
 //  4. Resto → GLM-5.2 (el GLM más potente).
 const TOOL_ERROR_RE = /ERROR:|EXIT [1-9]\d*|Traceback|error TS\d|npm error|SyntaxError|ReferenceError|TypeError|FAILED|no aparece en el archivo|aparece \d+ veces/i
 
-const hasRecentImage = (messages: any[]) =>
-  messages.slice(-10).some((m: any) => Array.isArray(m?.content) && m.content.some((p: any) => p?.type === 'image_url'))
-const hasRecentError = (messages: any[]) =>
-  messages.slice(-6).some((m: any) => m?.role === 'tool' && TOOL_ERROR_RE.test(String(m.content || '')))
+const hasRecentImage = (messages: CliMessage[]) =>
+  messages.slice(-10).some((m) => Array.isArray(m?.content) && m.content.some((p) => p?.type === 'image_url'))
+const hasRecentError = (messages: CliMessage[]) =>
+  messages.slice(-6).some((m) => m?.role === 'tool' && TOOL_ERROR_RE.test(String(m.content || '')))
 
 // mode:
 //  - 'balanced' (por defecto): Kimi K3 planifica/errores/tareas largas, GLM-5.2 rutina.
 //  - 'glm'  (económico): GLM-5.2 hace TODO; Kimi K3 solo si hay errores o imágenes.
 //  - 'max'  (calidad):  Kimi K3 siempre.
-function pickBrain(messages: any[], mode = 'balanced'): string {
+function pickBrain(messages: CliMessage[], mode = 'balanced'): string {
   if (mode === 'max') return MODELS.codePro
   // La visión y los errores SIEMPRE justifican el buque insignia (GLM no tiene
   // visión; los errores difíciles los resuelve mejor Kimi), incluso en modo GLM.
@@ -89,7 +112,7 @@ function pickBrain(messages: any[], mode = 'balanced'): string {
 }
 
 // Esquemas de las herramientas que el CLI (v2) sabe ejecutar localmente.
-export const CODE_TOOLS = [
+export const CODE_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   { type: 'function', function: { name: 'read_file', description: 'Lee un archivo del proyecto. Devuelve líneas numeradas desde offset (0 por defecto), hasta limit líneas (400 por defecto). Úsalo antes de editar.', parameters: { type: 'object', properties: { path: { type: 'string' }, offset: { type: 'number', description: 'Línea inicial (0-index).' }, limit: { type: 'number', description: 'Máximo de líneas a leer.' } }, required: ['path'] } } },
   { type: 'function', function: { name: 'edit_file', description: 'Edita un archivo EXISTENTE reemplazando old_text (texto EXACTO, único en el archivo) por new_text. Preferido sobre write_file para cambios: no reescribe el archivo entero.', parameters: { type: 'object', properties: { path: { type: 'string' }, old_text: { type: 'string' }, new_text: { type: 'string' }, all: { type: 'boolean', description: 'true para reemplazar todas las apariciones.' } }, required: ['path', 'old_text', 'new_text'] } } },
   { type: 'function', function: { name: 'write_file', description: 'Crea un archivo nuevo (o sobreescribe uno entero, solo si de verdad hace falta).', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
@@ -142,7 +165,7 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
   const messages = Array.isArray(req.body?.messages) ? req.body.messages : null
   if (!messages) return res.status(400).json({ error: 'Falta el array messages.' })
   if (messages.length > 200) return res.status(400).json({ error: 'Conversación demasiado larga.' })
-  const userId = (req as any).userId as string
+  const userId = req.userId
 
   // Subagente explorador (CLI v2.3+): modelo barato, solo herramientas de
   // lectura, sin cobrar cuota (sus pasos son parte de la tarea ya cobrada).
@@ -156,10 +179,10 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
 
   if (isExplorer) {
     try {
-      const completion: any = await getClient().chat.completions.create({
+      const completion = await getClient().chat.completions.create({
         model: MODELS.glm,
-        messages: [{ role: 'system', content: EXPLORER_SYSTEM }, ...messages] as any,
-        tools: EXPLORER_TOOLS as any,
+        messages: [{ role: 'system', content: EXPLORER_SYSTEM }, ...messages] as OpenAI.Chat.ChatCompletionMessageParam[],
+        tools: EXPLORER_TOOLS,
         tool_choice: 'auto',
         temperature: 0.2,
         max_tokens: 2000,
@@ -173,8 +196,8 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
         feature: 'daya-code',
       }).catch(() => {})
       return res.json({ message })
-    } catch (e: any) {
-      console.error('[codeagent] error (explorer):', e?.message || e)
+    } catch (e) {
+      console.error('[codeagent] error (explorer):', e instanceof Error ? e.message : e)
       return res.status(502).json({ error: 'El subagente no respondió. Intenta de nuevo.' })
     }
   }
@@ -185,23 +208,23 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
   if (req.body?.review === true) {
     const reviewer = req.body?.reviewer === 'glm' ? MODELS.glmPro : MODELS.codePro
     try {
-      const completion: any = await getClient().chat.completions.create({
+      const completion = await getClient().chat.completions.create({
         model: reviewer,
         messages: [
           { role: 'system', content: REVIEW_SYSTEM },
           ...messages,
           { role: 'user', content: 'REVISA el trabajo anterior. Responde SOLO este JSON: {"ok": true|false, "feedback": "si ok=false, la lista concreta de problemas a corregir; si ok=true, cadena vacía"}.' },
-        ] as any,
+        ] as OpenAI.Chat.ChatCompletionMessageParam[],
         temperature: 0.2,
         max_tokens: 1200,
-        response_format: { type: 'json_object' } as any,
+        response_format: { type: 'json_object' },
       })
-      let verdict: any = { ok: true, feedback: '' }
+      let verdict: { ok?: boolean; feedback?: string } = { ok: true, feedback: '' }
       try { verdict = JSON.parse(completion.choices?.[0]?.message?.content || '{}') } catch {}
       trackUsage({ userId, model: reviewer, inputTokens: completion.usage?.prompt_tokens, outputTokens: completion.usage?.completion_tokens, feature: 'daya-code' }).catch(() => {})
       return res.json({ review: { ok: verdict.ok !== false, feedback: String(verdict.feedback || '').slice(0, 4000) } })
-    } catch (e: any) {
-      console.error('[codeagent] error (review):', e?.message || e)
+    } catch (e) {
+      console.error('[codeagent] error (review):', e instanceof Error ? e.message : e)
       // Si el revisor falla, no bloqueamos la tarea: se aprueba por defecto.
       return res.json({ review: { ok: true, feedback: '' } })
     }
@@ -213,12 +236,12 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
   const BRAIN_CHAIN = picked === MODELS.codePro
     ? [MODELS.codePro, MODELS.glmPro, MODELS.glm]
     : [picked, MODELS.glm]
-  const fullMessages: any[] = [{ role: 'system', content: SYSTEM }, ...messages]
+  const fullMessages = [{ role: 'system', content: SYSTEM }, ...messages] as OpenAI.Chat.ChatCompletionMessageParam[]
 
   // Herramientas MCP dinámicas (CLI v3.1+): el CLI descubre tools de servidores
   // MCP externos y las envía como extraTools. Se validan y se añaden a las del
   // modelo. Nombre esperado: mcp__<servidor>__<tool>. Topes anti-abuso.
-  const extraTools: any[] = []
+  const extraTools: OpenAI.Chat.ChatCompletionTool[] = []
   if (Array.isArray(req.body?.extraTools)) {
     for (const t of req.body.extraTools.slice(0, 40)) {
       const name = t?.function?.name
@@ -236,7 +259,7 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
   const toolsForModel = extraTools.length ? [...CODE_TOOLS, ...extraTools] : CODE_TOOLS
   // Registro para "Uso e Insights" (no bloquea la respuesta). Si el stream no
   // trae usage, estima la entrada desde los mensajes para no subreportar costo.
-  const track = (usedModel: string, outputText: string, usage?: any) => {
+  const track = (usedModel: string, outputText: string, usage?: OpenAI.CompletionUsage) => {
     trackUsage({
       userId,
       model: usedModel,
@@ -256,22 +279,22 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
     res.flushHeaders()
-    const send = (o: any) => res.write(`data: ${JSON.stringify(o)}\n\n`)
+    const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`)
     try {
-      let lastErr: any = null
+      let lastErr: unknown = null
       for (const model of BRAIN_CHAIN) {
         try {
-          const stream: any = await getClient().chat.completions.create({
+          const stream = await getClient().chat.completions.create({
             model,
             messages: fullMessages,
-            tools: toolsForModel as any,
+            tools: toolsForModel,
             tool_choice: 'auto',
             temperature: 0.3,
             max_tokens: 4000,
             stream: true,
           })
           let content = ''
-          const toolCalls: any[] = []
+          const toolCalls: OpenAI.Chat.ChatCompletionMessageToolCall[] = []
           for await (const chunk of stream) {
             const delta = chunk.choices?.[0]?.delta
             if (delta?.content) { content += delta.content; send({ type: 'text', delta: delta.content }) }
@@ -285,16 +308,17 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
               }
             }
           }
-          const message: any = { role: 'assistant', content: content || null }
+          const message: { role: 'assistant'; content: string | null; tool_calls?: OpenAI.Chat.ChatCompletionMessageToolCall[] } = { role: 'assistant', content: content || null }
           const assembled = toolCalls.filter(Boolean)
           if (assembled.length) message.tool_calls = assembled
           track(model, content)
           send({ type: 'done', message })
           res.end()
           return
-        } catch (e: any) {
+        } catch (e) {
           lastErr = e
-          const status = e?.status ?? e?.statusCode
+          const err = e as { status?: number; statusCode?: number }
+          const status = err?.status ?? err?.statusCode
           if (status === 404 || status === 400) {
             console.warn(`[codeagent] ${model} no disponible (${status}), probando respaldo...`)
             continue
@@ -303,8 +327,8 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
         }
       }
       throw lastErr || new Error('sin modelo disponible')
-    } catch (e: any) {
-      console.error('[codeagent] error (stream):', e?.message || e)
+    } catch (e) {
+      console.error('[codeagent] error (stream):', e instanceof Error ? e.message : e)
       send({ type: 'error', error: 'El modelo no respondió. Intenta de nuevo.' })
       res.end()
     }
@@ -313,24 +337,25 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
 
   // ── Modo clásico (compatibilidad con CLIs anteriores): JSON completo ──
   try {
-    let completion: any = null
+    let completion: OpenAI.Chat.ChatCompletion | null = null
     let usedModel = BRAIN_CHAIN[0]
-    let lastErr: any = null
+    let lastErr: unknown = null
     for (const model of BRAIN_CHAIN) {
       try {
         completion = await getClient().chat.completions.create({
           model,
           messages: fullMessages,
-          tools: toolsForModel as any,
+          tools: toolsForModel,
           tool_choice: 'auto',
           temperature: 0.3,
           max_tokens: 4000,
         })
         usedModel = model
         break
-      } catch (e: any) {
+      } catch (e) {
         lastErr = e
-        const status = e?.status ?? e?.statusCode
+        const err = e as { status?: number; statusCode?: number }
+        const status = err?.status ?? err?.statusCode
         if (status === 404 || status === 400) {
           console.warn(`[codeagent] ${model} no disponible (${status}), probando respaldo...`)
           continue
@@ -343,8 +368,8 @@ router.post('/step', chatBurstLimiter, async (req: Request, res: Response) => {
     const message = completion.choices?.[0]?.message
     track(usedModel, message?.content || '', completion.usage)
     res.json({ message })
-  } catch (e: any) {
-    console.error('[codeagent] error:', e?.message || e)
+  } catch (e) {
+    console.error('[codeagent] error:', e instanceof Error ? e.message : e)
     res.status(502).json({ error: 'El modelo no respondió. Intenta de nuevo.' })
   }
 })

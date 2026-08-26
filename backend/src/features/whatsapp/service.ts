@@ -20,7 +20,7 @@ import { prisma } from '../../lib/prisma'
 import { buildSystemPrompt, extractMemories } from '../../services/memory'
 import { chatSingle } from '../../services/openrouter'
 
-const db = prisma as any
+const db = prisma
 
 const CFG = {
   token: process.env.WHATSAPP_TOKEN || '',
@@ -77,8 +77,8 @@ export async function sendMessage(phone: string, text: string): Promise<boolean>
       return false
     }
     return true
-  } catch (e: any) {
-    console.warn('[whatsapp] envío error:', e?.message || e)
+  } catch (e) {
+    console.warn('[whatsapp] envío error:', e instanceof Error ? e.message : e)
     return false
   }
 }

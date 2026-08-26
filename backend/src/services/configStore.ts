@@ -4,7 +4,7 @@
 
 import { prisma } from '../lib/prisma'
 
-const db = prisma as any
+const db = prisma
 
 /** Carga un array de T desde la clave dada. Devuelve [] si no existe o hay error. */
 export async function loadConfig<T>(key: string): Promise<T[]> {

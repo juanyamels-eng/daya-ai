@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 
-const db = prisma as any
+const db = prisma
 
 // Autenticación: acepta tanto un JWT de sesión como un token de API (prefijo "dy_").
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
@@ -22,7 +22,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       if (!record) return res.status(401).json({ error: 'Token de API inválido' })
       // Marca último uso (sin bloquear la petición)
       db.apiToken.update({ where: { id: record.id }, data: { lastUsedAt: new Date() } }).catch(() => {})
-      ;(req as any).userId = record.userId
+      req.userId = record.userId
       return next()
     } catch {
       return res.status(401).json({ error: 'Token de API inválido' })
@@ -32,7 +32,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   // ── JWT de sesión (comportamiento original) ──
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string }
-    ;(req as any).userId = decoded.userId
+    req.userId = decoded.userId
     next()
   } catch {
     return res.status(401).json({ error: 'Token inválido o expirado' })

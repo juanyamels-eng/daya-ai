@@ -35,20 +35,20 @@ export function getGlobalUsage(): { date: string; count: number; cap: number } {
 }
 
 // Registra un error de forma estructurada (y lo deja listo para Sentry si se quiere).
-export function captureError(context: string, err: any): void {
-  const msg = err?.message || String(err)
+export function captureError(context: string, err: unknown): void {
+  const msg = err instanceof Error ? (err.message || String(err)) : String(err)
   console.error(`[ERROR] ${context}: ${msg}`)
-  if (err?.stack) console.error(err.stack)
+  if (err instanceof Error && err.stack) console.error(err.stack)
   // Si en el futuro se integra Sentry:
   // if (process.env.SENTRY_DSN) Sentry.captureException(err, { tags: { context } })
 }
 
 // Engancha los manejadores globales del proceso para no morir en silencio.
 export function setupProcessGuards(): void {
-  process.on('unhandledRejection', (reason: any) => {
+  process.on('unhandledRejection', (reason) => {
     captureError('unhandledRejection', reason)
   })
-  process.on('uncaughtException', (err: any) => {
+  process.on('uncaughtException', (err) => {
     captureError('uncaughtException', err)
     // No salimos abruptamente: registramos y seguimos sirviendo.
   })

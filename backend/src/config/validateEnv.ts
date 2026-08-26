@@ -24,10 +24,22 @@ export function validateEnv(): void {
 
   for (const check of CHECKS) {
     const value = process.env[check.key]
-    const isEmpty = !value || value.trim() === '' || value.includes('PON-TU')
+    let isEmpty = !value || value.trim() === '' || value.includes('PON-TU')
+
+    if (check.key === 'DATABASE_URL' && value && !isEmpty) {
+      const placeholders = ['REGION', 'xxxxx', 'xxxxxxx', 'TU-', 'YOUR-', '[PASSWORD]']
+      for (const p of placeholders) {
+        if (value.toUpperCase().includes(p)) {
+          // Force into the "missing" path below
+          isEmpty = true
+          missingCritical.push(`  ❌ ${check.key} — contiene "${p}" (parece un placeholder no rellenado)`)
+          break
+        }
+      }
+    }
 
     if (isEmpty) {
-      if (check.critical) missingCritical.push(`  ❌ ${check.key} — ${check.hint}`)
+      if (check.critical && !missingCritical.some(e => e.includes(check.key))) missingCritical.push(`  ❌ ${check.key} — ${check.hint}`)
       else missingOptional.push(`  ⚠️  ${check.key} — ${check.hint}`)
     }
   }

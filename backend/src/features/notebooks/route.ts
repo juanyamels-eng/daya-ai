@@ -11,6 +11,7 @@
 // ============================================
 import { Router, Request, Response } from 'express'
 import multer from 'multer'
+import { NotebookSource } from '@prisma/client'
 import { requireAuth } from '../../middleware/auth'
 import { chatBurstLimiter, heavyLimiter } from '../../middleware/rateLimiter'
 import { prisma } from '../../lib/prisma'
@@ -26,7 +27,7 @@ import { buildProfessionalHTML } from '../../services/documents/pdfGenerator'
 import { htmlToPDF } from '../../services/documents/pdfRenderer'
 import { saveToLibrary } from '../../services/documents/documentService'
 
-const db = prisma as any
+const db = prisma
 const router = Router()
 router.use(requireAuth)
 
@@ -43,7 +44,7 @@ async function consumeMessage(userId: string): Promise<{ ok: boolean; error?: st
       id: true, plan: true, planExpiresAt: true, usageResetAt: true,
       messagesUsed: true, imagesUsed: true, searchesUsed: true, studioUsed: true, documentsUsed: true,
     },
-  })
+  }) as Parameters<typeof resolveEffectivePlan>[0] | null
   if (!user) return { ok: false, error: 'Usuario no encontrado.' }
   await resolveEffectivePlan(user)
   await resetUsageIfDue(user)
@@ -56,7 +57,7 @@ async function consumeMessage(userId: string): Promise<{ ok: boolean; error?: st
 
 // Clave de recuperación de una fuente: los documentos de Biblioteca ya están
 // indexados con su docId; las URLs y textos se indexan con el id de la fuente.
-const ragKey = (s: any) => (s.type === 'document' ? s.docId : s.id)
+const ragKey = (s: { type: string; docId: string | null; id: string }) => (s.type === 'document' ? s.docId : s.id)
 
 async function getNotebook(userId: string, id: string) {
   return db.notebook.findFirst({ where: { id, userId } })
@@ -65,18 +66,18 @@ async function getNotebook(userId: string, id: string) {
 // ── CRUD de cuadernos ─────────────────────────────────────────────────────────
 
 router.get('/', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     const notebooks = await db.notebook.findMany({ where: { userId }, orderBy: { updatedAt: 'desc' } })
     const counts = await db.notebookSource.groupBy({ by: ['notebookId'], where: { userId }, _count: true })
     const countMap: Record<string, number> = {}
     for (const c of counts) countMap[c.notebookId] = c._count
-    res.json(notebooks.map((n: any) => ({ ...n, sourceCount: countMap[n.id] || 0 })))
+    res.json(notebooks.map(n => ({ ...n, sourceCount: countMap[n.id] || 0 })))
   } catch { res.status(500).json({ error: 'No se pudieron cargar los cuadernos.' }) }
 })
 
 router.post('/', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const title = String(req.body?.title || '').trim().slice(0, 120) || 'Cuaderno sin título'
   try {
     const nb = await db.notebook.create({ data: { userId, title } })
@@ -85,7 +86,7 @@ router.post('/', async (req: Request, res: Response) => {
 })
 
 router.get('/:id', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     const nb = await getNotebook(userId, req.params.id)
     if (!nb) return res.status(404).json({ error: 'Cuaderno no encontrado.' })
@@ -99,7 +100,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 })
 
 router.patch('/:id', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const title = String(req.body?.title || '').trim().slice(0, 120)
   if (!title) return res.status(400).json({ error: 'Falta el título.' })
   try {
@@ -110,7 +111,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 })
 
 router.delete('/:id', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     const nb = await getNotebook(userId, req.params.id)
     if (!nb) return res.status(404).json({ error: 'Cuaderno no encontrado.' })
@@ -127,7 +128,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 // ── Fuentes ───────────────────────────────────────────────────────────────────
 
 router.post('/:id/sources', heavyLimiter, async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { type } = req.body || {}
   try {
     const nb = await getNotebook(userId, req.params.id)
@@ -135,7 +136,7 @@ router.post('/:id/sources', heavyLimiter, async (req: Request, res: Response) =>
     const count = await db.notebookSource.count({ where: { notebookId: nb.id } })
     if (count >= MAX_SOURCES) return res.status(400).json({ error: `Máximo ${MAX_SOURCES} fuentes por cuaderno.` })
 
-    let source: any = null
+    let source: NotebookSource | null = null
 
     if (type === 'document') {
       const docId = String(req.body?.docId || '')
@@ -176,8 +177,8 @@ router.post('/:id/sources', heavyLimiter, async (req: Request, res: Response) =>
 
     await db.notebook.update({ where: { id: nb.id }, data: { updatedAt: new Date() } }).catch(() => {})
     res.json({ id: source.id, type: source.type, title: source.title, docId: source.docId, createdAt: source.createdAt })
-  } catch (e: any) {
-    console.error('[notebooks] error añadiendo fuente:', e?.message || e)
+  } catch (e) {
+    console.error('[notebooks] error añadiendo fuente:', e instanceof Error ? e.message : e)
     res.status(500).json({ error: 'No se pudo añadir la fuente.' })
   }
 })
@@ -185,7 +186,7 @@ router.post('/:id/sources', heavyLimiter, async (req: Request, res: Response) =>
 // Fuente de AUDIO: sube una grabación (reunión, clase, nota de voz), se
 // transcribe con Whisper (servicio ya existente) y entra como fuente indexada.
 router.post('/:id/sources/audio', heavyLimiter, audioUpload.single('audio'), async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió el archivo de audio.' })
     if (!isTranscriptionConfigured()) return res.status(503).json({ error: 'La transcripción de audio no está disponible.' })
@@ -205,14 +206,14 @@ router.post('/:id/sources/audio', heavyLimiter, audioUpload.single('audio'), asy
     await indexDocument(userId, source.id, title, result.text).catch(() => {})
     await db.notebook.update({ where: { id: nb.id }, data: { updatedAt: new Date() } }).catch(() => {})
     res.json({ id: source.id, type: source.type, title: source.title, createdAt: source.createdAt })
-  } catch (e: any) {
-    console.error('[notebooks] error en fuente de audio:', e?.message || e)
+  } catch (e) {
+    console.error('[notebooks] error en fuente de audio:', e instanceof Error ? e.message : e)
     res.status(500).json({ error: 'No se pudo transcribir el audio.' })
   }
 })
 
 router.delete('/:id/sources/:sid', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     const nb = await getNotebook(userId, req.params.id)
     if (!nb) return res.status(404).json({ error: 'Cuaderno no encontrado.' })
@@ -240,7 +241,7 @@ REGLAS ESTRICTAS:
 Sé claro, riguroso y directo: profundidad con sustancia, sin paja.`
 
 router.post('/:id/chat', chatBurstLimiter, async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const question = String(req.body?.question || '').trim()
   const history = Array.isArray(req.body?.history) ? req.body.history.slice(-8) : []
   if (!question) return res.status(400).json({ error: 'Falta la pregunta.' })
@@ -254,15 +255,15 @@ router.post('/:id/chat', chatBurstLimiter, async (req: Request, res: Response) =
     if (!quota.ok) return res.status(429).json({ error: quota.error })
 
     // Recuperación anclada: SOLO los chunks de las fuentes de este cuaderno.
-    const keyToN = new Map<string, number>()
-    sources.forEach((s: any, i: number) => keyToN.set(ragKey(s), i + 1))
-    const keys = [...keyToN.keys()].filter(Boolean)
+    const keyToN = new Map<string | null, number>()
+    sources.forEach((s, i) => keyToN.set(ragKey(s), i + 1))
+    const keys = [...keyToN.keys()].filter((k): k is string => Boolean(k))
 
     const qVec = await embedText(question).catch(() => [] as number[])
     const chunks = await db.docChunk.findMany({ where: { userId, docId: { in: keys } }, take: 800 }).catch(() => [])
     let context = ''
     if (chunks.length) {
-      const docs: HybridDoc[] = chunks.map((c: any) => ({
+      const docs: HybridDoc[] = chunks.map(c => ({
         id: c.id,
         text: c.text,
         vector: (qVec.length && Array.isArray(c.embedding) && c.embedding.length) ? c.embedding : undefined,
@@ -274,24 +275,24 @@ router.post('/:id/chat', chatBurstLimiter, async (req: Request, res: Response) =
     // Respaldo: si aún no hay chunks (indexación en curso), usa el inicio del contenido.
     if (!context) {
       context = sources
-        .map((s: any, i: number) => (s.content ? `[${i + 1}] ${s.content.slice(0, 3000)}` : ''))
+        .map((s, i) => (s.content ? `[${i + 1}] ${s.content.slice(0, 3000)}` : ''))
         .filter(Boolean).join('\n\n')
     }
     if (!context) return res.status(400).json({ error: 'Las fuentes aún se están procesando. Intenta en unos segundos.' })
 
-    const sourceList = sources.map((s: any, i: number) => `[${i + 1}] ${s.title} (${s.type === 'document' ? 'documento' : s.type === 'url' ? 'web' : 'texto'})`).join('\n')
+    const sourceList = sources.map((s, i) => `[${i + 1}] ${s.title} (${s.type === 'document' ? 'documento' : s.type === 'url' ? 'web' : 'texto'})`).join('\n')
     const userPrompt = `FUENTES DEL CUADERNO:\n${sourceList}\n\nFRAGMENTOS RELEVANTES:\n${context}\n\nPREGUNTA DEL USUARIO:\n${question}`
-    const msgs = [...history.map((m: any) => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: String(m.content || '').slice(0, 4000) })), { role: 'user' as const, content: userPrompt }]
+    const msgs = [...history.map((m: { role?: string; content?: string }) => ({ role: m.role === 'assistant' ? 'assistant' as const : 'user' as const, content: String(m.content || '').slice(0, 4000) })), { role: 'user' as const, content: userPrompt }]
 
     const answer = await chatSingle(msgs, 'flash', CHAT_SYSTEM, undefined, 2500)
     trackUsage({ userId, model: MODELS.flash, inputText: userPrompt, outputText: answer, feature: 'notebooks' }).catch(() => {})
 
     res.json({
       answer: (answer || '').trim() || 'No pude generar una respuesta. Intenta de nuevo.',
-      citations: sources.map((s: any, i: number) => ({ n: i + 1, title: s.title, type: s.type })),
+      citations: sources.map((s, i) => ({ n: i + 1, title: s.title, type: s.type })),
     })
-  } catch (e: any) {
-    console.error('[notebooks] error en chat:', e?.message || e)
+  } catch (e) {
+    console.error('[notebooks] error en chat:', e instanceof Error ? e.message : e)
     res.status(500).json({ error: 'No se pudo responder. Intenta de nuevo.' })
   }
 })
@@ -317,14 +318,14 @@ const TRANSFORMS: Record<string, { title: string; prompt: string }> = {
 }
 
 // Material completo del cuaderno, por fuente y con topes de seguridad.
-async function collectMaterial(userId: string, sources: any[], capPerSource = 20000, capTotal = 90000): Promise<string> {
+async function collectMaterial(userId: string, sources: NotebookSource[], capPerSource = 20000, capTotal = 90000): Promise<string> {
   const parts: string[] = []
   for (let i = 0; i < sources.length; i++) {
     const s = sources[i]
     let text = s.content || ''
     if (!text && s.type === 'document' && s.docId) {
       const chunks = await db.docChunk.findMany({ where: { userId, docId: s.docId }, orderBy: { createdAt: 'asc' }, take: 60 }).catch(() => [])
-      text = chunks.map((c: any) => c.text).join('\n')
+      text = chunks.map(c => c.text).join('\n')
     }
     if (text) parts.push(`===== FUENTE [${i + 1}]: ${s.title} =====\n${text.slice(0, capPerSource)}`)
   }
@@ -332,7 +333,7 @@ async function collectMaterial(userId: string, sources: any[], capPerSource = 20
 }
 
 router.post('/:id/transform', heavyLimiter, async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const kind = String(req.body?.kind || '')
   const t = TRANSFORMS[kind]
   if (!t) return res.status(400).json({ error: 'kind debe ser: resumen, ideas, guia o faq.' })
@@ -357,8 +358,8 @@ router.post('/:id/transform', heavyLimiter, async (req: Request, res: Response) 
     )
     trackUsage({ userId, model: MODELS.flash, inputText: material.slice(0, 60000), outputText: content, feature: 'notebooks' }).catch(() => {})
     res.json({ title: t.title, content: (content || '').trim() })
-  } catch (e: any) {
-    console.error('[notebooks] error en transformación:', e?.message || e)
+  } catch (e) {
+    console.error('[notebooks] error en transformación:', e instanceof Error ? e.message : e)
     res.status(500).json({ error: 'No se pudo generar. Intenta de nuevo.' })
   }
 })
@@ -367,6 +368,9 @@ router.post('/:id/transform', heavyLimiter, async (req: Request, res: Response) 
 // Guion con Gemini Flash → voces neuronales de Microsoft Edge (msedge-tts:
 // gratis, sin API key, calidad alta y multiidioma) → un solo MP3.
 // Progreso por SSE (mismo patrón que deep-research).
+interface PodcastSegment { speaker?: string; text?: string }
+interface PodcastScript { lang?: string; segments?: PodcastSegment[] }
+
 const VOICE_MAP: Record<string, { A: string; B: string }> = {
   es: { A: 'es-MX-DaliaNeural', B: 'es-MX-JorgeNeural' },
   en: { A: 'en-US-AriaNeural', B: 'en-US-GuyNeural' },
@@ -379,7 +383,7 @@ const VOICE_MAP: Record<string, { A: string; B: string }> = {
 async function ttsSegment(text: string, voice: string): Promise<Buffer | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const mod: any = await import('msedge-tts')
+      const mod = await import('msedge-tts')
       const tts = new mod.MsEdgeTTS()
       await tts.setMetadata(voice, mod.OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3)
       const { audioStream } = tts.toStream(text)
@@ -388,7 +392,7 @@ async function ttsSegment(text: string, voice: string): Promise<Buffer | null> {
         const timer = setTimeout(() => reject(new Error('timeout de voz')), 60000)
         audioStream.on('data', (c: Buffer) => chunks.push(c))
         audioStream.on('end', () => { clearTimeout(timer); resolve(Buffer.concat(chunks)) })
-        audioStream.on('error', (e: any) => { clearTimeout(timer); reject(e) })
+        audioStream.on('error', (e: Error) => { clearTimeout(timer); reject(e) })
       })
       try { tts.close?.() } catch {}
       if (buf.length > 1000) return buf
@@ -399,7 +403,7 @@ async function ttsSegment(text: string, voice: string): Promise<Buffer | null> {
 }
 
 router.post('/:id/audio', heavyLimiter, async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const nb = await getNotebook(userId, req.params.id)
   if (!nb) return res.status(404).json({ error: 'Cuaderno no encontrado.' })
   const sources = await db.notebookSource.findMany({ where: { notebookId: nb.id }, orderBy: { createdAt: 'asc' } })
@@ -412,7 +416,7 @@ router.post('/:id/audio', heavyLimiter, async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
   res.flushHeaders()
-  const send = (o: any) => res.write(`data: ${JSON.stringify(o)}\n\n`)
+  const send = (o: Record<string, unknown>) => res.write(`data: ${JSON.stringify(o)}\n\n`)
 
   try {
     send({ status: 'Leyendo las fuentes…' })
@@ -425,12 +429,12 @@ router.post('/:id/audio', heavyLimiter, async (req: Request, res: Response) => {
       'Eres un guionista de podcasts de divulgación. Trabajas SOLO con el material dado; nunca inventas datos. Respondes únicamente JSON válido.',
       MODELS.flash,
       3000
-    ).catch(() => null)
+    ).catch(() => null) as PodcastScript | null
 
     const segments = (Array.isArray(script?.segments) ? script.segments : [])
-      .filter((s: any) => s && typeof s.text === 'string' && s.text.trim())
+      .filter(s => s && typeof s.text === 'string' && s.text.trim())
       .slice(0, 12)
-      .map((s: any) => ({ speaker: s.speaker === 'B' ? 'B' : 'A', text: String(s.text).trim().slice(0, 480) }))
+      .map(s => ({ speaker: s.speaker === 'B' ? 'B' : 'A', text: String(s.text).trim().slice(0, 480) }))
     if (segments.length < 4) { send({ error: 'No pude generar un guion sólido con estas fuentes. Intenta de nuevo.' }); res.end(); return }
     const voices = VOICE_MAP[String(script?.lang || 'es').toLowerCase().slice(0, 2)] || VOICE_MAP.es
 
@@ -455,18 +459,18 @@ router.post('/:id/audio', heavyLimiter, async (req: Request, res: Response) => {
       res.end(); return
     }
     const mp3 = Buffer.concat(ok)
-    trackUsage({ userId, model: MODELS.flash, inputText: material.slice(0, 60000), outputText: segments.map((s: any) => s.text).join(' '), feature: 'notebooks' }).catch(() => {})
+    trackUsage({ userId, model: MODELS.flash, inputText: material.slice(0, 60000), outputText: segments.map(s => s.text).join(' '), feature: 'notebooks' }).catch(() => {})
 
     send({
       done: true,
       title: `Resumen en audio — ${nb.title}`,
       mime: 'audio/mpeg',
       audio: mp3.toString('base64'),
-      transcript: segments.map((s: any) => `${s.speaker === 'A' ? 'Ana' : 'Leo'}: ${s.text}`).join('\n\n'),
+      transcript: segments.map(s => `${s.speaker === 'A' ? 'Ana' : 'Leo'}: ${s.text}`).join('\n\n'),
     })
     res.end()
-  } catch (e: any) {
-    console.error('[notebooks] error en audio:', e?.message || e)
+  } catch (e) {
+    console.error('[notebooks] error en audio:', e instanceof Error ? e.message : e)
     send({ error: 'No se pudo generar el audio. Intenta de nuevo.' })
     res.end()
   }
@@ -477,7 +481,7 @@ router.post('/:id/audio', heavyLimiter, async (req: Request, res: Response) => {
 // (motor editorial ya existente: buildProfessionalHTML + Puppeteer), guardado
 // en la Biblioteca del usuario. Consume 1 de la cuota de documentos del plan.
 router.post('/:id/report', heavyLimiter, async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   let charged = false
   try {
     const nb = await getNotebook(userId, req.params.id)
@@ -492,7 +496,7 @@ router.post('/:id/report', heavyLimiter, async (req: Request, res: Response) => 
     const material = await collectMaterial(userId, sources)
     if (!material) { await refundQuota(userId, 'document'); return res.status(400).json({ error: 'Las fuentes aún se están procesando. Intenta en unos segundos.' }) }
 
-    const sourceList = sources.map((s: any, i: number) => `[${i + 1}] ${s.title}`).join('\n')
+    const sourceList = sources.map((s, i) => `[${i + 1}] ${s.title}`).join('\n')
     const markdown = await chatSingle(
       [{ role: 'user', content: `Redacta un INFORME ejecutivo completo, en el idioma del material, en markdown limpio:\n## Resumen ejecutivo (lo esencial en 2-3 párrafos)\n## Secciones por tema (3-6 secciones con los datos concretos del material, citando [n])\n## Conclusiones (accionables, sin paja)\n## Fuentes (la lista numerada tal cual se te da)\n\nFUENTES:\n${sourceList}\n\nMATERIAL:\n${material}` }],
       'flash',
@@ -510,9 +514,9 @@ router.post('/:id/report', heavyLimiter, async (req: Request, res: Response) => 
 
     trackUsage({ userId, model: MODELS.flash, inputText: material.slice(0, 60000), outputText: markdown, feature: 'notebooks' }).catch(() => {})
     res.json({ docId, title: `${title}.pdf` })
-  } catch (e: any) {
+  } catch (e) {
     if (charged) await refundQuota(userId, 'document').catch(() => {})
-    console.error('[notebooks] error en informe:', e?.message || e)
+    console.error('[notebooks] error en informe:', e instanceof Error ? e.message : e)
     res.status(500).json({ error: 'No se pudo generar el informe. Intenta de nuevo.' })
   }
 })

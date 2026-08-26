@@ -24,27 +24,27 @@ router.get('/webhook', (req: Request, res: Response) => {
 // Rutas para la UI de "Conectar WhatsApp" (Ajustes). Autenticadas.
 router.post('/link', requireAuth, async (req: Request, res: Response) => {
   try {
-    const data = await wa.createLinkCode((req as any).userId)
+    const data = await wa.createLinkCode(req.userId)
     res.json(data)
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo generar el código.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'No se pudo generar el código.' })
   }
 })
 
 router.get('/link', requireAuth, async (req: Request, res: Response) => {
   try {
-    res.json(await wa.getLinkStatus((req as any).userId))
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo consultar el vínculo.' })
+    res.json(await wa.getLinkStatus(req.userId))
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'No se pudo consultar el vínculo.' })
   }
 })
 
 router.delete('/link', requireAuth, async (req: Request, res: Response) => {
   try {
-    await wa.unlink((req as any).userId)
+    await wa.unlink(req.userId)
     res.json({ ok: true })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo desvincular.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'No se pudo desvincular.' })
   }
 })
 
@@ -62,8 +62,8 @@ export function whatsappWebhook(req: Request, res: Response) {
 
   try {
     const body = JSON.parse(raw.toString('utf8'))
-    wa.processWebhook(body).catch((e: any) => console.warn('[whatsapp] proceso webhook error:', e?.message || e))
-  } catch (e: any) {
-    console.warn('[whatsapp] webhook JSON inválido:', e?.message || e)
+    wa.processWebhook(body).catch((e: any) => console.warn('[whatsapp] proceso webhook error:', e instanceof Error ? e.message : e))
+  } catch (e) {
+    console.warn('[whatsapp] webhook JSON inválido:', e instanceof Error ? e.message : e)
   }
 }

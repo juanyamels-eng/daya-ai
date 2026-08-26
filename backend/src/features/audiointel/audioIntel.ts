@@ -101,7 +101,7 @@ export async function analyzeTranscript(
       speakers: toStringArray(parsed?.speakers),
       wordCount,
     }
-  } catch (e: any) {
+  } catch {
     // Degradación: al menos devolvemos el conteo y un resumen vacío en vez de romper.
     return { summary: '', chapters: [], actionItems: [], decisions: [], openQuestions: [], speakers: [], wordCount }
   }

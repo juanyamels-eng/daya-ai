@@ -1,4 +1,4 @@
-import { chatJSON, chatSingle } from '../../services/openrouter'
+import { chatJSON, chatSingle, type JSONResult } from '../../services/openrouter'
 import { getCheapModel, registerModelsInUse } from '../modelCatalog'
 import { prisma } from '../../lib/prisma'
 
@@ -6,7 +6,7 @@ import { prisma } from '../../lib/prisma'
 registerModelsInUse(['moonshotai/kimi-k2.6'], 'documentService (docs de pago)')
 
 // Helper: extrae JSON de forma robusta de la respuesta de la IA
-export function extractJSON(text: string): any {
+export function extractJSON(text: string): JSONResult {
   let cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim()
   // Buscar el primer { y el último }
   const start = cleaned.indexOf('{')
@@ -16,12 +16,12 @@ export function extractJSON(text: string): any {
   }
   try {
     return JSON.parse(cleaned)
-  } catch (e) {
+  } catch {
     // Intentar reparar JSON común: comillas, saltos de línea en strings
     try {
       cleaned = cleaned.replace(/[\u0000-\u001F]+/g, ' ')
       return JSON.parse(cleaned)
-    } catch (e2) {
+    } catch {
       console.error('JSON parse failed. Raw response:', text.slice(0, 500))
       throw new Error('La IA no devolvió JSON válido')
     }
@@ -97,10 +97,14 @@ Respond ONLY with this JSON:
 
     const parsed = await chatJSON(ask, sys, 'deepseek/deepseek-v4-pro')
     if (parsed && typeof parsed.cover === 'string') {
-      return { cover: parsed.cover, sections: parsed.sections || {} }
+      const sections: Record<string, string> = {}
+      for (const [k, v] of Object.entries((parsed.sections as Record<string, unknown>) || {})) {
+        if (typeof v === 'string') sections[k] = v
+      }
+      return { cover: parsed.cover, sections }
     }
-  } catch (err: any) {
-    console.error('Error generando queries de imagen:', err?.message || err)
+  } catch (err) {
+    console.error('Error generando queries de imagen:', err instanceof Error ? err.message : err)
   }
   return empty
 }
@@ -159,11 +163,11 @@ Responde SOLO con JSON:
 
   // Reúne el contenido de forma robusta
   let content: string = (parsed.content || parsed.body || '').toString().trim()
-  const sections = Array.isArray(parsed.sections) ? parsed.sections.filter((s: any) => s && (s.heading || s.body)) : []
+  const sections = Array.isArray(parsed.sections) ? parsed.sections.filter((s: JSONResult) => s && (s.heading || s.body)) : []
 
   // Si "content" vino vacío o muy corto pero hay secciones, arma el contenido con ellas
   if (content.length < 120 && sections.length) {
-    content = sections.map((s: any) => `## ${s.heading || ''}\n\n${s.body || ''}`.trim()).join('\n\n')
+    content = sections.map((s: JSONResult) => `## ${s.heading || ''}\n\n${s.body || ''}`.trim()).join('\n\n')
   }
 
   // ÚLTIMO RESPALDO: si todavía no hay contenido real, lo pedimos como PROSA directa
@@ -220,14 +224,17 @@ function splitIntoChunks(text: string, size = CHUNK_SIZE): string[] {
   return chunks
 }
 
-export async function analyzeFile(req: AnalyzeRequest): Promise<{
+// Análisis de un documento generado por el modelo
+interface DocAnalysis {
   summary: string
   keyPoints: string[]
   insights: string[]
   suggestions: string[]
   answer?: string
   truncated?: boolean
-}> {
+}
+
+export async function analyzeFile(req: AnalyzeRequest): Promise<DocAnalysis> {
   const systemPrompt = `Eres un experto analizando documentos y archivos.
 Extrae información valiosa, identifica puntos clave y proporciona insights útiles.
 Responde en JSON válido.`
@@ -251,7 +258,7 @@ Responde SOLO con JSON:
   "suggestions": ["sugerencia de mejora 1", "sugerencia 2"],
   "answer": "${req.question ? 'respuesta específica a la pregunta' : ''}"
 }`
-    return await chatJSON(prompt, systemPrompt, MODEL_ANALYZE)
+    return await chatJSON(prompt, systemPrompt, MODEL_ANALYZE) as unknown as DocAnalysis
   }
 
   // Documento largo: MAP — analizar cada trozo en paralelo.
@@ -272,17 +279,21 @@ Responde SOLO con JSON:
   )
 
   // REDUCE — combinar los hallazgos parciales en un análisis final coherente.
-  const allKeyPoints = partials.flatMap((p: any) => p.keyPoints || [])
-  const allInsights = partials.flatMap((p: any) => p.insights || [])
+  const allKeyPoints = partials.flatMap((p: JSONResult) =>
+    Array.isArray(p.keyPoints) ? p.keyPoints.filter((k): k is string => typeof k === 'string') : []
+  )
+  const allInsights = partials.flatMap((p: JSONResult) =>
+    Array.isArray(p.insights) ? p.insights.filter((k): k is string => typeof k === 'string') : []
+  )
 
   const reducePrompt = `Tengo el análisis por partes de un documento largo llamado "${req.fileName}".
 Combínalos en un análisis final coherente, sin repetir, priorizando lo más importante.
 
 PUNTOS CLAVE DETECTADOS:
-${allKeyPoints.map((k: string) => `- ${k}`).join('\n')}
+${allKeyPoints.map((k) => `- ${k}`).join('\n')}
 
 INSIGHTS DETECTADOS:
-${allInsights.map((k: string) => `- ${k}`).join('\n')}
+${allInsights.map((k) => `- ${k}`).join('\n')}
 
 ${req.question ? `PREGUNTA ESPECÍFICA DEL USUARIO: ${req.question}` : ''}
 
@@ -296,7 +307,7 @@ Responde SOLO con JSON:
 }`
 
   const final = await chatJSON(reducePrompt, systemPrompt, MODEL_ANALYZE)
-  return { ...final, truncated: false } // se analizó el documento completo
+  return { ...final, truncated: false } as unknown as DocAnalysis // se analizó el documento completo
 }
 
 // ============================================
@@ -306,7 +317,7 @@ Responde SOLO con JSON:
 export async function reorganizeDocument(
   content: string,
   instruction: string,
-  docType: DocType
+  _docType: DocType
 ): Promise<{ reorganized: string; changes: string[] }> {
   const prompt = `Reorganiza y mejora este documento según la instrucción.
 
@@ -321,7 +332,7 @@ Responde SOLO con JSON:
   "changes": ["cambio realizado 1", "cambio realizado 2"]
 }`
 
-  return await chatJSON(prompt, undefined, 'deepseek/deepseek-v4-pro')
+  return await chatJSON(prompt, undefined, 'deepseek/deepseek-v4-pro') as unknown as { reorganized: string; changes: string[] }
 }
 
 // ============================================
@@ -345,7 +356,7 @@ Responde SOLO con JSON:
   "notes": "notas sobre la transformación realizada"
 }`
 
-  return await chatJSON(prompt, undefined, 'deepseek/deepseek-v4-pro')
+  return await chatJSON(prompt, undefined, 'deepseek/deepseek-v4-pro') as unknown as { transformed: string; notes: string }
 }
 
 // ============================================
@@ -367,7 +378,7 @@ ${chunks[0]}
 
 Responde SOLO con JSON:
 { "summary": "resumen completo", "tldr": "una sola oración que capture la esencia" }`
-    return await chatJSON(prompt, undefined, MODEL_ANALYZE)
+    return await chatJSON(prompt, undefined, MODEL_ANALYZE) as unknown as { summary: string; tldr: string }
   }
 
   // Documento largo: resumir cada trozo y luego resumir los resúmenes.
@@ -385,7 +396,7 @@ Responde SOLO con JSON: { "summary": "resumen de esta parte" }`,
     )
   )
 
-  const combined = partialSummaries.map((p: any) => p.summary).filter(Boolean).join('\n\n')
+  const combined = partialSummaries.map((p: JSONResult) => p.summary).filter(Boolean).join('\n\n')
   const finalPrompt = `Combina estos resúmenes parciales en un único resumen ${style} de máximo ${maxWords} palabras del documento completo:
 
 ${combined}
@@ -393,7 +404,7 @@ ${combined}
 Responde SOLO con JSON:
 { "summary": "resumen final del documento completo", "tldr": "una sola oración que capture la esencia" }`
 
-  return await chatJSON(finalPrompt, undefined, MODEL_ANALYZE)
+  return await chatJSON(finalPrompt, undefined, MODEL_ANALYZE) as unknown as { summary: string; tldr: string }
 }
 
 // ============================================

@@ -18,7 +18,7 @@
 
 import { prisma } from '../../lib/prisma'
 
-const db = prisma as any
+const db = prisma
 
 // ── Price table (USD per 1M tokens) — ESTIMATED, adjustable ──────────────────
 // Maps OpenRouter model ID → { input, output }.

@@ -58,12 +58,12 @@ function assertSafeUrl(rawUrl: string): URL {
 export interface FetchOptions {
   method?: 'GET' | 'POST'
   headers?: Record<string, string>
-  body?: any
+  body?: unknown
   timeoutMs?: number
   maxBytes?: number
 }
 
-export async function fetchJSON(rawUrl: string, opts: FetchOptions = {}): Promise<any> {
+export async function fetchJSON<T = unknown>(rawUrl: string, opts: FetchOptions = {}): Promise<T> {
   const u = assertSafeUrl(rawUrl)
   const timeoutMs = Math.min(opts.timeoutMs ?? 15000, 30000)
   const maxBytes = Math.min(opts.maxBytes ?? 4_000_000, 10_000_000) // 4 MB por defecto
@@ -88,10 +88,10 @@ export async function fetchJSON(rawUrl: string, opts: FetchOptions = {}): Promis
     // Lee con tope de tamaño para no reventar la memoria con respuestas enormes.
     const text = await readCapped(res, maxBytes)
     try {
-      return JSON.parse(text)
+      return JSON.parse(text) as T
     } catch {
       // No era JSON: devolvemos el texto recortado para que el agente lo vea igual.
-      return { __raw_text: text.slice(0, 20000), __note: 'La respuesta no era JSON válido.' }
+      return { __raw_text: text.slice(0, 20000), __note: 'La respuesta no era JSON válido.' } as T
     }
   } finally {
     clearTimeout(timer)
@@ -122,11 +122,11 @@ export interface SchemaNode {
   keys?: Record<string, string>
   itemType?: string
   length?: number
-  sample?: any
+  sample?: unknown
 }
 
 // Describe la forma de un valor sin volcar todo su contenido.
-export function describeSchema(value: any, depth = 0): SchemaNode {
+export function describeSchema(value: unknown, depth = 0): SchemaNode {
   if (value === null) return { type: 'null' }
   if (Array.isArray(value)) {
     const itemType = value.length ? typeOf(value[0]) : 'unknown'
@@ -139,25 +139,27 @@ export function describeSchema(value: any, depth = 0): SchemaNode {
   }
   if (typeof value === 'object') {
     const keys: Record<string, string> = {}
-    for (const k of Object.keys(value).slice(0, 40)) keys[k] = typeOf(value[k])
+    const rec = value as Record<string, unknown>
+    for (const k of Object.keys(rec).slice(0, 40)) keys[k] = typeOf(rec[k])
     return { type: 'object', keys }
   }
   return { type: typeOf(value), sample: value }
 }
 
-function typeOf(v: any): string {
+function typeOf(v: unknown): string {
   if (v === null) return 'null'
   if (Array.isArray(v)) return `array[${v.length}]`
   return typeof v
 }
 
 // Recorta un valor para muestra: arrays a 3 items, strings largos, anidación.
-function trimValue(v: any, depth: number): any {
+function trimValue(v: unknown, depth: number): unknown {
   if (depth > 3) return '…'
   if (Array.isArray(v)) return v.slice(0, 3).map(x => trimValue(x, depth + 1))
   if (v && typeof v === 'object') {
-    const out: any = {}
-    for (const k of Object.keys(v).slice(0, 12)) out[k] = trimValue(v[k], depth + 1)
+    const out: Record<string, unknown> = {}
+    const rec = v as Record<string, unknown>
+    for (const k of Object.keys(rec).slice(0, 12)) out[k] = trimValue(rec[k], depth + 1)
     return out
   }
   if (typeof v === 'string' && v.length > 200) return v.slice(0, 200) + '…'
@@ -167,10 +169,10 @@ function trimValue(v: any, depth: number): any {
 // ── Extracción por ruta (JSONPath simplificado) ─────────────────────────────
 // Soporta: "a.b.c", índices "a.0.b", y "a[].b" (mapea sobre cada elemento).
 
-export function extractPath(data: any, path: string): any {
+export function extractPath(data: unknown, path: string): unknown {
   if (!path) return data
   const parts = path.replace(/\[(\d+)\]/g, '.$1').replace(/\[\]/g, '.[]').split('.').filter(Boolean)
-  let cur: any = data
+  let cur: unknown = data
   for (let i = 0; i < parts.length; i++) {
     const p = parts[i]
     if (cur == null) return undefined
@@ -179,7 +181,7 @@ export function extractPath(data: any, path: string): any {
       const rest = parts.slice(i + 1).join('.')
       return cur.map(item => (rest ? extractPath(item, rest) : item))
     }
-    cur = cur[p]
+    cur = (cur as Record<string, unknown>)[p]
   }
   return cur
 }
@@ -187,7 +189,7 @@ export function extractPath(data: any, path: string): any {
 // ── Resumen "listo para decidir" ─────────────────────────────────────────────
 // Produce un texto compacto que un modelo puede consumir sin desbordarse.
 
-export function summarizeForAgent(data: any, opts: { path?: string; maxChars?: number } = {}): string {
+export function summarizeForAgent(data: unknown, opts: { path?: string; maxChars?: number } = {}): string {
   const maxChars = opts.maxChars ?? 4000
   const target = opts.path ? extractPath(data, opts.path) : data
   const schema = describeSchema(target)
@@ -208,13 +210,31 @@ export function summarizeForAgent(data: any, opts: { path?: string; maxChars?: n
 // ── Conectores de conveniencia (sin API key) ─────────────────────────────────
 
 // GitHub: info de un repositorio "owner/name" o de un usuario "@usuario".
+interface GithubData {
+  full_name?: string
+  description?: string
+  stargazers_count?: number
+  forks_count?: number
+  open_issues_count?: number
+  language?: string
+  updated_at?: string
+  license?: { name?: string }
+  login?: string
+  name?: string
+  bio?: string
+  public_repos?: number
+  followers?: number
+  company?: string
+  location?: string
+}
+
 export async function github(query: string): Promise<string> {
   const q = query.trim().replace(/^@/, '')
   const isRepo = q.includes('/')
   const url = isRepo
     ? `https://api.github.com/repos/${encodeURIComponent(q.split('/')[0])}/${encodeURIComponent(q.split('/')[1])}`
     : `https://api.github.com/users/${encodeURIComponent(q)}`
-  const data = await fetchJSON(url)
+  const data = await fetchJSON<GithubData>(url)
   if (isRepo) {
     return [
       `Repositorio: ${data.full_name}`,
@@ -238,9 +258,9 @@ export async function github(query: string): Promise<string> {
 export async function cryptoPrice(ids: string, vs = 'usd'): Promise<string> {
   const safeIds = ids.split(',').map(s => encodeURIComponent(s.trim())).join(',')
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${safeIds}&vs_currencies=${encodeURIComponent(vs)}&include_24hr_change=true`
-  const data = await fetchJSON(url)
+  const data = await fetchJSON<Record<string, Record<string, number>>>(url)
   const lines: string[] = []
-  for (const [id, info] of Object.entries<any>(data)) {
+  for (const [id, info] of Object.entries(data)) {
     const price = info[vs]
     const change = info[`${vs}_24h_change`]
     lines.push(`${id}: ${price} ${vs.toUpperCase()}${typeof change === 'number' ? ` (${change >= 0 ? '+' : ''}${change.toFixed(2)}% 24h)` : ''}`)
@@ -255,7 +275,7 @@ export interface OracleQuery {
   url?: string                 // API arbitraria
   method?: 'GET' | 'POST'
   headers?: Record<string, string>
-  body?: any
+  body?: unknown
   path?: string                // ruta de extracción opcional
   connector?: 'github' | 'crypto'
   arg?: string                 // argumento para el conector

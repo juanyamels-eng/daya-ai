@@ -32,7 +32,6 @@
 
 const INK = '#e3e3e3'
 const DIM = '#9aa0a6'
-const SURF = '#1e1e1f'
 
 function autopilot() {
   let idle = 0
@@ -45,8 +44,6 @@ function autopilot() {
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v)
 const lerp = (a, b, t) => a + (b - a) * t
-/* Gris por luminosidad, para lo que no lleva color. */
-const gray = (t) => { const v = clamp(t, 0, 1) * 255 | 0; return `rgb(${v},${v},${v})` }
 
 /* Oscurece un color hacia la niebla del fondo. `t` = 1 cerca, 0 lejos.
    Es lo que convierte una pared plana de color en una pared con distancia. */
@@ -473,7 +470,7 @@ export function createPlatformer() {
         if (humano) {
           fin = { pts: Math.floor(pts), rec, nuevo: batio, life: 2600 }
           pts = 0; batio = false
-          sfx.boom(); fin.nuevo ? sfx.record() : sfx.fin()
+          sfx.boom(); if (fin.nuevo) sfx.record(); else sfx.fin()
         } else pts = Math.max(0, pts - 100)
         deaths++
       }
@@ -877,7 +874,7 @@ export function createBricks() {
             if (--lives <= 0) {
               if (humano) {
                 fin = { pts: Math.floor(pts), rec, nuevo: batio, life: 2600 }; batio = false
-                fin.nuevo ? sfx.record() : sfx.fin()
+                if (fin.nuevo) sfx.record(); else sfx.fin()
               }
               lives = 3; pts = 0; nivel = 1; layout()
             } else if (humano) sfx.boom()
@@ -1134,7 +1131,7 @@ export function createMaze3D() {
   let chain, chainT   // combo: encadenar orbes sin pausa multiplica el premio
   let airT = 0   // reloj del polvo ambiental: corre aunque la camara pare
   let braseros = []   // fuegos fijos que iluminan y dan vida a los pasillos
-  let humano = false, rec = 0, batio = false   // record (aqui no se muere: no hay fin)
+  let humano = false, rec = 0   // record (aqui no se muere: no hay fin)
 
   const wall = (x, y) => {
     const cx = Math.floor(x), cy = Math.floor(y)
@@ -1197,8 +1194,8 @@ export function createMaze3D() {
       if (w !== W || h !== H) reset(w, h)
       ap.tick(dt)
       if (ap.on) humano = false
-      else if (!humano) { humano = true; pts = 0; batio = false }
-      if (humano && Math.floor(pts) > rec) { rec = Math.floor(pts); record.set('maze3d', rec); batio = true }
+      else if (!humano) { humano = true; pts = 0 }
+      if (humano && Math.floor(pts) > rec) { rec = Math.floor(pts); record.set('maze3d', rec) }
       const s = Math.min(dt, 34) / 1000
       const spd = 2.3 * s, rot = 4.0 * s   // giro vivo: los pivotes en las esquinas se hacian eternos
 
@@ -1527,7 +1524,7 @@ export function createRacer() {
   let W = 1, H = 1, road, pos, speed, playerX, rivals, pts, held, hits = 0
   let popFx = 0, popTxt = ''   // "+25 · P3" al adelantar: correr tiene premio visible
   let puesto = 7   // posicion en carrera: 6 rivales + tu. Adelantar sube; que te pasen, baja
-  let humano = false, rec = 0, batio = false   // record (sin muerte: no hay fin)
+  let humano = false, rec = 0   // record (sin muerte: no hay fin)
 
   const build = () => {
     road = []
@@ -2120,7 +2117,7 @@ export function createSurvivor() {
             if (humano) {
               fin = { pts: Math.floor(pts), rec, nuevo: batio, life: 2600 }
               pts = 0; lvl = 1; xp = 0; t = 0; batio = false; jefeT = 20000
-              sfx.boom(); fin.nuevo ? sfx.record() : sfx.fin()
+              sfx.boom(); if (fin.nuevo) sfx.record(); else sfx.fin()
             } else pts = Math.max(0, pts - 150)
             hp = 3; foes.length = 0; burst(me.x, me.y, 24); deaths++
           }
@@ -2231,7 +2228,7 @@ export function createSurvivor() {
         for (let i = 0; i < 6; i++) {
           const a = (i / 6) * Math.PI * 2 + t / (f.boss ? 1600 : 900)
           const x = f.x + Math.cos(a) * fr, y = f.y + Math.sin(a) * fr
-          i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)
+          if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y)
         }
         ctx.closePath(); ctx.fill(); ctx.stroke()
         if (f.boss) {
@@ -2561,7 +2558,7 @@ export function createNeon() {
           if (humano) {
             fin = { pts: Math.floor(pts), rec, nuevo: batio, life: 2600 }
             pts = 0; t = 0; batio = false
-            sfx.boom(); fin.nuevo ? sfx.record() : sfx.fin()
+            sfx.boom(); if (fin.nuevo) sfx.record(); else sfx.fin()
           } else pts = Math.max(0, pts - 100)
           burst(me.x, me.y, 20); shock(me.x, me.y, 2.4)
           foes.length = 0

@@ -10,7 +10,7 @@ describe('hexToRgb', () => {
   it('valor inválido → null', () => {
     expect(hexToRgb('rojo')).toBeNull()
     expect(hexToRgb('#12')).toBeNull()
-    expect(hexToRgb(undefined as any)).toBeNull()
+    expect(hexToRgb(undefined as unknown as string)).toBeNull()
   })
 })
 

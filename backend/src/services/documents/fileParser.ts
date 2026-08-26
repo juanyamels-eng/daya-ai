@@ -35,10 +35,10 @@ async function parsePDF(buffer: Buffer): Promise<ParsedFile> {
       const tableResult = await parser.getTable()
       const tables = (tableResult.mergedTables?.length
         ? tableResult.mergedTables
-        : (tableResult.pages || []).flatMap((p: any) => p.tables || []))
+        : (tableResult.pages || []).flatMap((p) => p.tables || []))
       tablesMd = tablesToMarkdown(tables)
-    } catch (e: any) {
-      console.warn('[fileParser] Detección de tablas del PDF falló:', e?.message || e)
+    } catch (e) {
+      console.warn('[fileParser] Detección de tablas del PDF falló:', e instanceof Error ? e.message || e : e)
     }
   }
 
@@ -50,8 +50,8 @@ async function parsePDF(buffer: Buffer): Promise<ParsedFile> {
     try {
       const ocr = await ocrScannedPdf(buffer, pages)
       if (ocr && ocr.trim().length > 20) text = ocr.trim()
-    } catch (e: any) {
-      console.warn('[fileParser] OCR de PDF escaneado falló:', e?.message || e)
+    } catch (e) {
+      console.warn('[fileParser] OCR de PDF escaneado falló:', e instanceof Error ? e.message || e : e)
     }
   }
 
@@ -237,7 +237,7 @@ async function parseEpub(buffer: Buffer): Promise<ParsedFile> {
 
   // 1) container.xml → ruta del OPF (con fallback: buscar cualquier .opf del zip)
   const container = await readFile('META-INF/container.xml')
-  let opfPath = (container.match(/full-path="([^"]+)"/i) || [])[1]
+  const opfPath = (container.match(/full-path="([^"]+)"/i) || [])[1]
     || Object.keys(zip.files).find(n => n.toLowerCase().endsWith('.opf')) || ''
   const opfDir = opfPath.includes('/') ? opfPath.replace(/\/[^/]*$/, '/') : ''
   const opf = opfPath ? await readFile(opfPath) : ''
@@ -388,8 +388,8 @@ export async function parseFile(
     // Texto plano y todo lo demás
     return parseText(buffer)
 
-  } catch (error: any) {
-    throw new Error(`No se pudo leer el archivo ${fileName}: ${error.message}`)
+  } catch (error) {
+    throw new Error(`No se pudo leer el archivo ${fileName}: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 

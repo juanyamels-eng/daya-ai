@@ -1,16 +1,19 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuthStore, useChatStore, ACTIVE_CONV_KEY } from '../../store'
-import { authAPI, chatAPI } from '../../lib/api'
-import Sidebar from '../../components/layout/Sidebar'
-import ChatWindow from '../../components/chat/ChatWindow'
-import Onboarding from '../../components/Onboarding'
-import { ErrorBoundary } from '../../components/common/ErrorBoundary'
-import Splash from '../../components/Splash'
+import { useAuthStore, useChatStore, ACTIVE_CONV_KEY } from '@/store'
+import { authAPI, chatAPI } from '@/lib/api'
+import Sidebar from '@/components/layout/Sidebar'
+import ChatWindow from '@/components/chat/ChatWindow'
+import Onboarding from '@/components/Onboarding'
+import VerifyEmailBanner from '@/components/VerifyEmailBanner'
+import { ErrorBoundary } from '@/components/common/ErrorBoundary'
+import Splash from '@/components/Splash'
 
+// Dashboard = la app principal: Sidebar (conversaciones, navegación) + ChatWindow.
+// El panel de insights vive aparte en /insights.
 export default function DashboardPage() {
-  const { isAuthenticated, setUser, hasHydrated, theme } = useAuthStore()
+  const { isAuthenticated, setUser, hasHydrated } = useAuthStore()
   const router = useRouter()
   const restored = useRef(false)
 
@@ -20,12 +23,12 @@ export default function DashboardPage() {
     authAPI.me().then(r => setUser(r.data)).catch((err: any) => {
       if (err?.response?.status === 401) router.push('/auth/login')
     })
-  }, [hasHydrated])
+  }, [hasHydrated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reabre la conversación que estaba activa antes de recargar (F5).
   // Corre una sola vez. CLAVE: solo borra el id guardado si la conversación ya no
-  // existe (404). Ante errores transitorios (backend de Railway arrancando en frío,
-  // red), REINTENTA sin borrar — antes un solo timeout destruía el id y el chat se
+  // existe (404). Ante errores transitorios (backend arrancando en frío, red),
+  // REINTENTA sin borrar — antes un solo timeout destruía el id y el chat se
   // perdía para siempre, abriendo uno nuevo.
   useEffect(() => {
     if (!hasHydrated || restored.current) return
@@ -50,11 +53,7 @@ export default function DashboardPage() {
         })
     }
     tryRestore()
-  }, [hasHydrated])
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-  }, [theme])
+  }, [hasHydrated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!hasHydrated) return <Splash />
   if (!isAuthenticated()) return <Splash />
@@ -62,7 +61,10 @@ export default function DashboardPage() {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)' }}>
       <ErrorBoundary label="Sidebar"><Sidebar /></ErrorBoundary>
-      <ErrorBoundary label="Chat"><ChatWindow /></ErrorBoundary>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <VerifyEmailBanner />
+        <ErrorBoundary label="Chat"><ChatWindow /></ErrorBoundary>
+      </div>
       <Onboarding />
     </div>
   )

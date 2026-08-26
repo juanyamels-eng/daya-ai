@@ -1,0 +1,19 @@
+{
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.11",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0"
+  },
+  "scripts": {
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "backend/**/*.{ts,js}": [
+      "cd backend && npx eslint --fix",
+      "cd backend && npx tsc --noEmit"
+    ],
+    "frontend/src/**/*.{ts,tsx,js,jsx}": [
+      "cd frontend && npx eslint --fix"
+    ]
+  }
+}

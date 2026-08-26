@@ -4,12 +4,19 @@
 
 import { Router, Request, Response } from 'express'
 import { requireAuth } from '../middleware/auth'
+import { paymentsLimiter } from '../middleware/rateLimiter'
 import { prisma } from '../lib/prisma'
 import { createOrder, captureOrder, isPayPalConfigured, getPayoneerLink } from '../services/paypal'
 import { PLANS, PlanId, getPublicPlans, getMessageLimit } from '../config/plans'
 import { sendPlanUpgradeEmail } from '../services/email'
+import { logger } from '../services/logger'
 
 const router = Router()
+
+interface WebhookEvent {
+  event_type?: string
+  type?: string
+}
 
 // FRONTEND_URL can be a comma-separated LIST (used by CORS). For PayPal
 // redirects we take the FIRST one as canonical.
@@ -32,9 +39,16 @@ router.get('/config', (_req: Request, res: Response) => {
 router.use(requireAuth)
 
 // Activates the user's plan after a confirmed payment (reusable)
-async function activatePlan(userId: string, planId: PlanId, chargeId?: string) {
+// Idempotent: replaying the same PayPal capture (same chargeId + plan) does NOT
+// reset the usage counters again — otherwise a retry/duplicate webhook would
+// grant free extra usage on every replay.
+export async function activatePlan(userId: string, planId: PlanId, chargeId?: string) {
   const user = await prisma.user.findUnique({ where: { id: userId } })
   if (!user) return null
+
+  if (chargeId && user.lastChargeId === chargeId && user.plan === planId) {
+    return { updated: user, expires: user.planExpiresAt || new Date(), alreadyProcessed: true }
+  }
 
   const now = new Date()
   const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
@@ -43,7 +57,7 @@ async function activatePlan(userId: string, planId: PlanId, chargeId?: string) {
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {
-      plan: planId as any,
+      plan: planId,
       planActivatedAt: now,
       planExpiresAt: expires,
       lastChargeId: chargeId || null,
@@ -64,7 +78,7 @@ async function activatePlan(userId: string, planId: PlanId, chargeId?: string) {
 }
 
 // POST /api/payments/paypal/create-order — creates the order and returns the approval link
-router.post('/paypal/create-order', async (req: Request, res: Response) => {
+router.post('/paypal/create-order', paymentsLimiter, async (req: Request, res: Response) => {
   const { planId } = req.body as { planId: PlanId }
   if (!planId || !PLANS[planId] || planId === 'FREE') {
     return res.status(400).json({ error: 'Plan inválido' })
@@ -81,8 +95,8 @@ router.post('/paypal/create-order', async (req: Request, res: Response) => {
 })
 
 // POST /api/payments/paypal/capture — confirms payment and activates the plan
-router.post('/paypal/capture', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+router.post('/paypal/capture', paymentsLimiter, async (req: Request, res: Response) => {
+  const userId = req.userId
   const { orderId, planId } = req.body as { orderId: string; planId: PlanId }
 
   if (!orderId) return res.status(400).json({ error: 'Orden requerida' })
@@ -113,7 +127,7 @@ router.post('/paypal/capture', async (req: Request, res: Response) => {
 
 // GET /api/payments/status — user's subscription status
 router.get('/status', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { plan: true, planActivatedAt: true, planExpiresAt: true, messagesUsed: true, messagesLimit: true },
@@ -154,14 +168,14 @@ export async function paymentsWebhook(req: Request, res: Response) {
     }
   }
 
-  let event: any
+  let event: WebhookEvent | undefined
   try {
     event = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString('utf8')) : req.body
   } catch {
     return res.status(400).json({ error: 'Payload inválido' })
   }
 
-  console.log('🔔 Webhook verificado:', event?.event_type || event?.type || 'evento')
+  logger.info(`🔔 Webhook verificado: ${event?.event_type || event?.type || 'evento'}`)
   res.status(200).json({ received: true })
 }
 

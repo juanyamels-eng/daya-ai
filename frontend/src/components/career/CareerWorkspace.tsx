@@ -16,7 +16,7 @@ interface MatchResult {
 
 interface FullResult {
   match?: MatchResult
-  tailoredResume?: any
+  tailoredResume?: Record<string, unknown>
   tailorChanges?: string[]
   coverLetter?: string
   error?: string

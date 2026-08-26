@@ -8,6 +8,7 @@
 //   ESCALA a modelos más fuertes en tareas difíciles.
 // ============================================
 import { getPremiumModel, registerHealable, pickByPrefix } from './modelCatalog'
+import { logger } from './logger'
 
 export type TaskType =
   | 'fast'       // pregunta simple, definición, traducción
@@ -23,7 +24,9 @@ export type UserPlan = 'FREE' | 'PRO'
 export function detectTaskType(message: string): TaskType {
   const m = message.toLowerCase()
 
-  if (/código|code|programa|función|function|script|bug|error|debug|html|css|javascript|python|typescript|sql|json|react|vue|node|api|backend|frontend|clase|método|array|loop|algoritmo|framework/.test(m))
+  // code: términos con word boundaries para acrónimos cortos, substring para largos
+  // "api" se quita porque coincide en "capitalismo", "capitán", etc.
+  if (/\b(código|code|programa|función|function|script|bug|error|debug|html|css|javascript|python|typescript|sql|json|react|vue|node|backend|frontend|clase|método|array|loop|algoritmo|framework)\b/.test(m))
     return 'code'
 
   if (/calcula|matemátic|estadístic|porcentaje|fórmula|ecuación|álgebra|derivada|integral|probabilidad|geometría|\d+\s*[\+\-\*\/]\s*\d+/.test(m))
@@ -135,6 +138,23 @@ registerHealable('modelSelector.ELITE', ELITE as Record<string, string>)
 registerHealable('modelSelector.FIXED', FIXED)
 registerHealable('modelSelector.CHAIN', CHAIN_MODELS)
 
+// Modo local (desarrollo): si no hay key de OpenRouter y se define LOCAL_LLM_MODEL,
+// TODOS los modelos de este archivo apuntan a ese modelo local (Ollama).
+// Sin esto, selectBestModel() devuelve IDs de OpenRouter que Ollama no tiene → 404.
+if (!process.env.OPENROUTER_API_KEY && process.env.LOCAL_LLM_MODEL) {
+  const local = process.env.LOCAL_LLM_MODEL
+  const patch = (obj: Record<string, unknown>) => { for (const k of Object.keys(obj)) obj[k] = local }
+  patch(FIXED)
+  patch(BASE)
+  patch(FREECAP)
+  patch(ESCALATE)
+  patch(ELITE)
+  patch(CHAIN_MODELS)
+  for (const tier of Object.values(CODE_TIERS)) {
+    const t = tier as unknown as { prefixes: string[]; fallback: string }; t.prefixes = [local]; t.fallback = local
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // DETECCIÓN DE COMPLEJIDAD
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,7 +200,7 @@ export async function classifyMessage(message: string): Promise<{ task: TaskType
 
   try {
     const { default: getClient } = await import('./openrouter')
-    const res: any = await Promise.race([
+    const res = await Promise.race([
       getClient().chat.completions.create({
         model: FIXED.classifier,
         messages: [
@@ -189,9 +209,9 @@ export async function classifyMessage(message: string): Promise<{ task: TaskType
         ],
         max_tokens: 40,
         temperature: 0,
-        response_format: { type: 'json_object' } as any,
+        response_format: { type: 'json_object' },
       }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 1200)),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 1200)),
     ])
     const parsed = JSON.parse(res?.choices?.[0]?.message?.content || '{}')
     const task: TaskType = VALID_TASKS.includes(parsed?.task) ? parsed.task : rxTask
@@ -223,13 +243,13 @@ export function selectBestModel(message: string, plan: UserPlan = 'FREE', hasAtt
   // Adjunto → visión (Pro + difícil sube al modelo de visión grande)
   if (hasAttachment) {
     const model = isPaid && complexity === 'complex' ? FIXED.visionPro : FIXED.vision
-    console.log(`🧠 DAYA → adjunto | plan: ${plan} | modelo: ${model}`)
+    logger.info(`🧠 DAYA → adjunto | plan: ${plan} | modelo: ${model}`)
     return model
   }
 
   // Trivial ("hola", "gracias") → lo más barato, no importa el plan
   if (complexity === 'trivial') {
-    console.log(`🧠 DAYA → trivial | modelo: ${FIXED.trivial}`)
+    logger.info(`🧠 DAYA → trivial | modelo: ${FIXED.trivial}`)
     return FIXED.trivial
   }
 
@@ -260,7 +280,7 @@ export function selectBestModel(message: string, plan: UserPlan = 'FREE', hasAtt
     }
   }
 
-  console.log(`🧠 DAYA → tarea: ${task} | complejidad: ${complexity} | plan: ${plan} | modelo: ${model}`)
+  logger.info(`🧠 DAYA → tarea: ${task} | complejidad: ${complexity} | plan: ${plan} | modelo: ${model}`)
   return model
 }
 

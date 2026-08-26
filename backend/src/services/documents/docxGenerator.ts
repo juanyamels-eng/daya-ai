@@ -97,7 +97,7 @@ function markdownToParagraphs(
         // imagen de la sección, si hay
         const buf = sectionImages.get(heading)
         if (buf) {
-          out.push(new Paragraph({ spacing: { before: 80, after: 120 }, children: [ new ImageRun({ data: buf as any, type: 'jpg', transformation: { width: 560, height: 240 } } as any) ] }))
+          out.push(new Paragraph({ spacing: { before: 80, after: 120 }, children: [ new ImageRun({ data: buf, type: 'jpg', transformation: { width: 560, height: 240 } }) ] }))
         }
       }
       if (rest) {
@@ -161,7 +161,7 @@ export async function buildDOCX(
     new Paragraph({ spacing: { after: 160 }, border: { bottom: { color: t.accent, space: 6, style: BorderStyle.SINGLE, size: 18 } }, children: [new TextRun({ text: `Informe · ${today}`, color: MIST, size: 20, font: t.font })] }),
   ]
   if (coverBuf) {
-    header.push(new Paragraph({ spacing: { after: 200 }, children: [ new ImageRun({ data: coverBuf as any, type: 'jpg', transformation: { width: 600, height: 300 } } as any) ] }))
+    header.push(new Paragraph({ spacing: { after: 200 }, children: [ new ImageRun({ data: coverBuf, type: 'jpg', transformation: { width: 600, height: 300 } }) ] }))
   }
 
   const footer: Paragraph[] = [

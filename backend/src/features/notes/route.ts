@@ -7,38 +7,38 @@
 // entorno `npx prisma generate && npx prisma db push`. Mientras tanto accedemos
 // a los modelos vía `db` (cast) para no depender de la generación local.
 // ============================================
-import { Router, Request, Response } from 'express'
+import { Router, Request } from 'express'
 import { requireAuth } from '../../middleware/auth'
 import { prisma } from '../../lib/prisma'
 
-const db = prisma as any
+const db = prisma
 const router = Router()
 router.use(requireAuth)
 
-const uid = (req: Request) => (req as any).userId
+const uid = (req: Request) => req.userId
 
 // ───────────── NOTAS ─────────────
-router.get('/notes', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const notes = await db.note.findMany({
       where: { userId: uid(req) },
       orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
     })
     res.json(notes)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
-router.post('/notes', async (req, res) => {
+router.post('/', async (req, res) => {
   const { title, content, color } = req.body
   try {
     const note = await db.note.create({
       data: { userId: uid(req), title: title || '', content: content || '', color: color || 'default' },
     })
     res.status(201).json(note)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
-router.patch('/notes/:id', async (req, res) => {
+router.patch('/:id', async (req, res) => {
   const { title, content, color, pinned } = req.body
   try {
     const r = await db.note.updateMany({
@@ -51,14 +51,14 @@ router.patch('/notes/:id', async (req, res) => {
       },
     })
     res.json({ success: r.count > 0 })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
-router.delete('/notes/:id', async (req, res) => {
+router.delete('/:id', async (req, res) => {
   try {
     await db.note.deleteMany({ where: { id: req.params.id, userId: uid(req) } })
     res.json({ success: true })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 // ───────────── TAREAS ─────────────
@@ -69,7 +69,7 @@ router.get('/tasks', async (req, res) => {
       orderBy: [{ done: 'asc' }, { createdAt: 'desc' }],
     })
     res.json(tasks)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.post('/tasks', async (req, res) => {
@@ -85,7 +85,7 @@ router.post('/tasks', async (req, res) => {
       },
     })
     res.status(201).json(task)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.patch('/tasks/:id', async (req, res) => {
@@ -101,14 +101,14 @@ router.patch('/tasks/:id', async (req, res) => {
       },
     })
     res.json({ success: r.count > 0 })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.delete('/tasks/:id', async (req, res) => {
   try {
     await db.task.deleteMany({ where: { id: req.params.id, userId: uid(req) } })
     res.json({ success: true })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 export default router

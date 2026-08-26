@@ -44,6 +44,24 @@ export const whatsappAPI = {
   disconnect: () => api.delete('/whatsapp/link'),
 }
 
+// ── Catálogo público de la comunidad ─────────────────────────────────────────
+export interface ToolCatalogEntry {
+  name: string
+  description: string
+  safeForAct: boolean
+  quotaKey?: string
+  meta: {
+    author: 'daya' | 'daya-auto' | 'comunidad'
+    tag?: string
+    emoji?: string
+    pro?: boolean
+  }
+}
+
+export const toolsCatalogAPI = {
+  get: () => api.get<{ total: number; byAuthor: Record<string, number>; tools: ToolCatalogEntry[] }>('/tools/catalog'),
+}
+
 // ── Tipos ───────────────────────────────────────────────────────────────────
 
 export interface ResearchProgress {
@@ -62,11 +80,22 @@ export interface ResearchReport {
 
 // ── Streaming SSE genérico (mismo patrón que sendMessageStream del chat) ──────
 
+interface SSEEvent {
+  id?: string
+  progress?: ResearchProgress
+  done?: boolean
+  report?: ResearchReport
+  cancelled?: boolean
+  delta?: string
+  full?: string
+  error?: string
+}
+
 async function streamSSE(
   path: string,
-  body: any,
+  body: Record<string, unknown>,
   handlers: {
-    onEvent: (data: any) => void
+    onEvent: (data: SSEEvent) => void
     onError: (msg: string) => void
     onClose?: () => void
   },
@@ -108,14 +137,14 @@ async function streamSSE(
         const raw = line.slice(6)
         if (raw === '[DONE]') continue
         try {
-          const parsed = JSON.parse(raw)
+          const parsed = JSON.parse(raw) as SSEEvent
           if (parsed.error) { handlers.onError(parsed.error); return }
           handlers.onEvent(parsed)
         } catch { /* línea parcial, se completará en la siguiente lectura */ }
       }
     }
-  } catch (e: any) {
-    if (e?.name !== 'AbortError') handlers.onError('Conexión interrumpida')
+  } catch (e: unknown) {
+    if ((e as { name?: string } | null)?.name !== 'AbortError') handlers.onError('Conexión interrumpida')
   } finally {
     handlers.onClose?.()
   }

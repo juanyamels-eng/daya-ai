@@ -1,6 +1,6 @@
 import { generateDocumentContent, generateImageQueries, GenerateRequest } from './documentService'
 import { DESIGN } from './designSystem'
-import { getEmbeddedImage, findImageCandidates, fetchAsDataUri } from './imageService'
+import { findImageCandidates, fetchAsDataUri } from './imageService'
 
 // ============================================
 // GENERADOR DE PDF / DOCUMENTO EJECUTIVO
@@ -18,7 +18,7 @@ export async function generatePDF(req: GenerateRequest): Promise<Buffer> {
 export async function buildIllustratedHTML(
   title: string,
   content: string,
-  sections: any[],
+  sections: { heading: string; body: string }[],
   topic: string,
   branded: boolean = true,
   style: string = 'ejecutivo'
@@ -76,7 +76,7 @@ export async function buildIllustratedHTML(
 export function buildProfessionalHTML(
   title: string,
   content: string,
-  sections: any[],
+  sections: { heading: string; body: string }[],
   coverImage?: string | null,
   sectionImages?: Map<string, string>,
   branded: boolean = true,
@@ -309,7 +309,7 @@ function markdownToHTML(markdown: string, sectionImages?: Map<string, string>): 
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/`(.+?)`/g, '<code>$1</code>')
 
-  for (let raw of blocks) {
+  for (const raw of blocks) {
     const block = raw.trim()
     if (!block) continue
 

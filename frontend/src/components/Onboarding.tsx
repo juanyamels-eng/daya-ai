@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 
 const STEPS = [
   {
@@ -23,7 +22,6 @@ const STEPS = [
 export default function Onboarding() {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState(0)
-  const router = useRouter()
 
   useEffect(() => {
     const seen = localStorage.getItem('daya_onboarding_seen')

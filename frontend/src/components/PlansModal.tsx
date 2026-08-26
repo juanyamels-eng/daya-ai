@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../store'
+import type { AxiosError } from 'axios'
 import { paymentsAPI } from '../lib/api'
 
 const PLANS = [
@@ -45,8 +46,9 @@ export default function PlansModal({ onClose }: { onClose: () => void }) {
         setError('No se pudo iniciar el pago. Intenta de nuevo.')
         setBusy(null)
       }
-    } catch (e: any) {
-      setError(e?.response?.data?.error || 'No se pudo iniciar el pago. Intenta de nuevo.')
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ error?: string }>
+      setError(err.response?.data?.error || 'No se pudo iniciar el pago. Intenta de nuevo.')
       setBusy(null)
     }
   }

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
+import type { AxiosError } from 'axios'
 import { authAPI } from '../../../lib/api'
 import { useAuthStore } from '../../../store'
 import PageTitle from '../../../components/PageTitle'
@@ -50,8 +51,9 @@ export default function LoginPage() {
       setToken(res.data.token)
       setUser(res.data.user)
       router.push('/dashboard')
-    } catch (e: any) {
-      setError(e.response?.data?.error || t('networkError'))
+    } catch (e: unknown) {
+      const err = e as AxiosError<{ error?: string }>
+      setError(err.response?.data?.error || t('networkError'))
     } finally { setLoading(false) }
   }
 

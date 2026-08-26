@@ -77,7 +77,7 @@ export async function structureJob(rawText: string): Promise<StructureResult<Job
       undefined,
       4000
     )
-    const data = parsed as JobPosting
+    const data = parsed as unknown as JobPosting
     const v = validateJob(data)
     if (!v.valid) return { ok: false, errors: v.errors, data }
     return { ok: true, data }

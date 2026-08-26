@@ -21,7 +21,7 @@ import { chatJSON } from '../../services/openrouter'
 import { embedText, cosineSimilarity, isEmbeddingConfigured } from '../../services/embeddings'
 import { tokenize } from '../../utils/nlp'
 
-const db = prisma as any
+const db = prisma
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -105,9 +105,15 @@ async function decide(fact: string, related: MemoryRow[]): Promise<{ operation: 
     const op = String(parsed?.operation || 'ADD').toUpperCase() as Operation
     if (!['ADD', 'UPDATE', 'DELETE', 'NONE'].includes(op)) return { operation: 'ADD' }
     // Verify targetId exists among related memories (security).
-    const targetId = parsed?.targetId && related.some(m => m.id === parsed.targetId) ? parsed.targetId : undefined
+    const rawTargetId = typeof parsed?.targetId === 'string' ? parsed.targetId : undefined
+    const targetId = rawTargetId && related.some(m => m.id === rawTargetId) ? rawTargetId : undefined
     if ((op === 'UPDATE' || op === 'DELETE') && !targetId) return { operation: 'ADD' } // no valid target → treat as new
-    return { operation: op, targetId, category: parsed?.category, reason: parsed?.reason }
+    return {
+      operation: op,
+      targetId,
+      category: typeof parsed?.category === 'string' ? parsed.category : undefined,
+      reason: typeof parsed?.reason === 'string' ? parsed.reason : undefined,
+    }
   } catch {
     return { operation: 'ADD' } // on error, safe behavior = add
   }

@@ -1,4 +1,4 @@
-import { generateDocumentContent, GenerateRequest } from './documentService'
+import { GenerateRequest } from './documentService'
 import { chatJSON, MODELS } from '../../services/openrouter'
 import { DESIGN, hex, looksLikeMoney, looksLikeDate } from './designSystem'
 import * as XLSX from 'xlsx'
@@ -10,7 +10,7 @@ import * as XLSX from 'xlsx'
 
 export async function generateExcelData(req: GenerateRequest): Promise<{
   headers: string[]
-  rows: any[][]
+  rows: unknown[][]
   chartConfig: { type: 'bar' | 'line' | 'pie' | 'area'; title: string; dataColumn: string; labelColumn: string } | null
   summary: string
   insights?: string[]
@@ -48,11 +48,17 @@ Responde SOLO con JSON válido:
   const isPaid = !!req.plan && !/free/i.test(req.plan)
   // Por alias, no por id: así el sanador del catálogo los mantiene vivos.
   const model = isPaid ? MODELS.claude : MODELS.chat
-  const parsed = await chatJSON(prompt, sys, model, 4000)
+  const parsed = await chatJSON(prompt, sys, model, 4000) as {
+    headers?: unknown
+    rows?: unknown
+    chartConfig?: { type: 'area' | 'line' | 'bar' | 'pie'; title: string; dataColumn: string; labelColumn: string }
+    summary?: string
+    insights?: string[]
+  }
 
   return {
-    headers: Array.isArray(parsed.headers) ? parsed.headers : ['Categoría', 'Valor'],
-    rows: Array.isArray(parsed.rows) && parsed.rows.length ? parsed.rows : [['Sin datos', 0]],
+    headers: Array.isArray(parsed.headers) ? parsed.headers as string[] : ['Categoría', 'Valor'],
+    rows: Array.isArray(parsed.rows) && parsed.rows.length ? parsed.rows as unknown[][] : [['Sin datos', 0]],
     chartConfig: parsed.chartConfig || { type: 'bar', title: 'Datos', dataColumn: '', labelColumn: '' },
     summary: parsed.summary || '',
     insights: Array.isArray(parsed.insights) ? parsed.insights : [],
@@ -62,7 +68,7 @@ Responde SOLO con JSON válido:
 // ============================================
 // Genera el archivo .xlsx REAL estilizado
 // ============================================
-export function buildXLSX(title: string, headers: string[], rows: any[][]): Buffer {
+export function buildXLSX(title: string, headers: string[], rows: unknown[][]): Buffer {
   const wb = XLSX.utils.book_new()
 
   // Construir matriz: cabecera + filas
@@ -134,12 +140,12 @@ function thinBorder(rgb: string) {
 export function buildExcelPreviewHTML(
   title: string,
   headers: string[],
-  rows: any[][],
-  chartConfig: any,
+  rows: unknown[][],
+  chartConfig: { type?: string; title?: string } | null,
   insights: string[] = []
 ): string {
   const tableRows = rows.map((row, ri) =>
-    `<tr style="background:${ri % 2 === 0 ? DESIGN.color.surfaceAlt : DESIGN.color.white}">${row.map((cell: any) => `<td>${cell}</td>`).join('')}</tr>`
+    `<tr style="background:${ri % 2 === 0 ? DESIGN.color.surfaceAlt : DESIGN.color.white}">${row.map((cell) => `<td>${cell}</td>`).join('')}</tr>`
   ).join('')
 
   const insightsList = insights.map(i => `<li>${i}</li>`).join('')

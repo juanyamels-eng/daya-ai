@@ -20,9 +20,14 @@ interface Hit { msgId: string; at: number }
 const HL = 'daya-find'
 const HL_ON = 'daya-find-on'
 
-function highlights(): any | null {
+interface HighlightRegistryLike {
+  delete(name: string): unknown
+  set(name: string, highlight: unknown): unknown
+}
+
+function highlights(): HighlightRegistryLike | null {
   if (typeof window === 'undefined') return null
-  const c: any = (window as any).CSS
+  const c = (window as unknown as { CSS?: { highlights?: HighlightRegistryLike } }).CSS
   return c && c.highlights ? c.highlights : null
 }
 
@@ -118,7 +123,7 @@ export default function ChatSearch({ messages, onClose }: {
       all.push(...rs)
     }
     try {
-      const H = (window as any).Highlight
+      const H = (window as unknown as { Highlight?: new (...ranges: Range[]) => unknown }).Highlight
       if (!H) return
       h.set(HL, new H(...all))
       if (activeRange) h.set(HL_ON, new H(activeRange))

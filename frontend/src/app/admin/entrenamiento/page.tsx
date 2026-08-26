@@ -3,10 +3,14 @@ import { useEffect, useState } from 'react'
 
 import { ADMIN_KEY, API } from '../../../lib/config'
 
+interface TrainingItem { id: string; category: string; userMessage: string; aiResponse: string; quality: number }
+interface Insight { id?: string; type: string; date: string; data: string }
+interface TrainingStats { total?: number; highQuality?: number; readyForFineTuning?: boolean }
+
 export default function AdminEntrenamiento() {
-  const [data, setData] = useState<any[]>([])
-  const [insights, setInsights] = useState<any[]>([])
-  const [stats, setStats] = useState<any>(null)
+  const [data, setData] = useState<TrainingItem[]>([])
+  const [insights, setInsights] = useState<Insight[]>([])
+  const [stats, setStats] = useState<TrainingStats>({})
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -118,8 +122,8 @@ export default function AdminEntrenamiento() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: 'var(--bg-elevated)', padding: 4, borderRadius: 10, width: 'fit-content' }}>
-        {[{ key: 'datos', label: '📦 Datos de entrenamiento' }, { key: 'insights', label: '💡 Insights generados' }].map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key as any)}
+        {([{ key: 'datos', label: '📦 Datos de entrenamiento' }, { key: 'insights', label: '💡 Insights generados' }] as const).map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)}
             style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, background: activeTab === t.key ? 'var(--bg-surface)' : 'transparent', color: activeTab === t.key ? 'var(--text-primary)' : 'var(--text-tertiary)', transition: 'all 0.15s', fontFamily: 'var(--font-body)' }}>
             {t.label}
           </button>
@@ -178,7 +182,7 @@ export default function AdminEntrenamiento() {
               No hay insights aún. El sistema genera insights cada noche a las 3:00 AM automáticamente.
             </div>
           ) : insights.map((ins, i) => {
-            let parsed: any = {}
+            let parsed: { improvements?: string[]; status?: string } = {}
             try { parsed = JSON.parse(ins.data) } catch {}
             const isInstruction = ins.type === 'instruction_update'
             const improvements: string[] = isInstruction ? (Array.isArray(parsed) ? parsed : (parsed.improvements || [])) : []
@@ -188,6 +192,8 @@ export default function AdminEntrenamiento() {
               approved: { label: 'Aprobada — activa en el chat', color: '#16a34a' },
               rejected: { label: 'Rechazada', color: '#ef4444' },
             }
+            // Local const: TS conserva el estrechamiento dentro de los closures de onClick
+            const pendingId = isInstruction && status === 'pending' ? ins.id : undefined
             return (
               <div key={ins.id || i} style={{ background: 'var(--bg-surface)', border: `1px solid ${isInstruction && status === 'pending' ? 'rgba(217,119,6,0.4)' : 'var(--border-default)'}`, borderRadius: 12, padding: '16px 18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -204,13 +210,13 @@ export default function AdminEntrenamiento() {
                         <li key={j} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{imp}</li>
                       ))}
                     </ul>
-                    {status === 'pending' && (
+                    {pendingId && (
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => decideInstruction(ins.id, 'approve')}
+                        <button onClick={() => decideInstruction(pendingId, 'approve')}
                           style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#16a34a', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                           Aprobar y aplicar
                         </button>
-                        <button onClick={() => decideInstruction(ins.id, 'reject')}
+                        <button onClick={() => decideInstruction(pendingId, 'reject')}
                           style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-secondary)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                           Rechazar
                         </button>

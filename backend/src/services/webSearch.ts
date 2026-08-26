@@ -34,6 +34,23 @@ function stripHtml(s: string): string {
   return (s || '').replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim()
 }
 
+// Formas mínimas de las respuestas JSON de los proveedores de búsqueda
+interface BraveResponse {
+  web?: { results?: { title?: string; url?: string; description?: string }[] }
+}
+interface DuckDuckGoInstantAnswer {
+  Heading?: string
+  AbstractText?: string
+  AbstractURL?: string
+  RelatedTopics?: { Text?: string; FirstURL?: string }[]
+}
+interface WikipediaSearchResponse {
+  query?: { search?: { title?: string; snippet?: string }[] }
+}
+interface TavilyResponse {
+  results?: { title?: string; url?: string; content?: string }[]
+}
+
 // ── Brave Search API (2 000 búsquedas/mes gratis; el proveedor más fiable sin Tavily) ──
 async function braveSearch(query: string, maxResults: number): Promise<SearchResult[]> {
   const key = getBraveKey()
@@ -44,8 +61,8 @@ async function braveSearch(query: string, maxResults: number): Promise<SearchRes
       headers: { 'Accept': 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': key },
     })
     if (!res.ok) return []
-    const data: any = await res.json()
-    return (data?.web?.results || []).slice(0, maxResults).map((r: any) => ({
+    const data: BraveResponse = await res.json()
+    return (data?.web?.results || []).slice(0, maxResults).map((r) => ({
       title: String(r.title || ''),
       url: String(r.url || ''),
       content: String(r.description || '').slice(0, 800),
@@ -115,7 +132,7 @@ async function freeSearch(query: string, maxResults: number): Promise<SearchResu
   // 3) DuckDuckGo Instant Answer (official JSON, no API key)
   try {
     const res = await fetch('https://api.duckduckgo.com/?q=' + encodeURIComponent(query) + '&format=json&no_html=1&no_redirect=1&skip_disambig=1')
-    const data: any = await res.json()
+    const data: DuckDuckGoInstantAnswer = await res.json()
     if (data.AbstractText) out.push({ title: data.Heading || query, url: data.AbstractURL || '', content: data.AbstractText })
     for (const t of (data.RelatedTopics || [])) {
       if (out.length >= maxResults) break
@@ -127,9 +144,9 @@ async function freeSearch(query: string, maxResults: number): Promise<SearchResu
   // 4) Wikipedia (es + en) — very reliable for topics and entities
   try {
     const esRes = await fetch('https://es.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + encodeURIComponent(query) + '&format=json&srlimit=' + maxResults + '&origin=*')
-    const esData: any = await esRes.json()
+    const esData: WikipediaSearchResponse = await esRes.json()
     for (const s of (esData?.query?.search || [])) {
-      out.push({ title: s.title, url: 'https://es.wikipedia.org/wiki/' + encodeURIComponent(String(s.title).replace(/ /g, '_')), content: stripHtml(s.snippet) })
+      out.push({ title: s.title || '', url: 'https://es.wikipedia.org/wiki/' + encodeURIComponent(String(s.title || '').replace(/ /g, '_')), content: stripHtml(s.snippet || '') })
     }
   } catch { /* no results */ }
   return out.slice(0, maxResults)
@@ -156,16 +173,16 @@ export async function searchWeb(query: string, maxResults = 5): Promise<SearchRe
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ api_key: tavilyKey, query: q, search_depth: 'basic', max_results: maxResults, include_answer: false }),
       })
-      const data: any = await res.json()
+      const data: TavilyResponse = await res.json()
       if (data.results?.length) {
-        results = data.results.map((r: any) => ({
+        results = data.results.map((r) => ({
           title: r.title || 'Sin título',
           url: r.url || '',
           content: (r.content || '').slice(0, 2000),
         }))
       }
-    } catch (err: any) {
-      console.error('❌ Error Tavily, intentando Brave:', err.message)
+    } catch (err) {
+      console.error('❌ Error Tavily, intentando Brave:', err instanceof Error ? err.message : err)
     }
   }
 
@@ -205,8 +222,8 @@ Genera entre 4 y 5 sub-consultas de búsqueda web en español, cortas y específ
 { "queries": ["consulta 1", "consulta 2", "consulta 3", "consulta 4"] }`
 
     const parsed = await chatJSON(prompt, systemPrompt, 'deepseek/deepseek-v4-pro')
-    const queries = Array.isArray(parsed?.queries)
-      ? parsed.queries.filter((q: any) => typeof q === 'string' && q.trim()).slice(0, 5)
+    const queries: string[] = Array.isArray(parsed?.queries)
+      ? (parsed.queries as unknown[]).filter((q): q is string => typeof q === 'string' && !!q.trim()).slice(0, 5)
       : []
     // Siempre incluir el tema original como primera consulta
     const unique = Array.from(new Set([topic, ...queries]))

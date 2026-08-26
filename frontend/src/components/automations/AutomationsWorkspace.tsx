@@ -4,13 +4,17 @@ import { useAuthStore } from '../../store'
 
 const API = process.env.NEXT_PUBLIC_API_URL || ''
 
+interface TriggerSpec { triggerId: string; config?: Record<string, string> }
+
+interface StepSpec { actionId: string; config?: Record<string, string> }
+
 interface Recipe {
   id: string
   name: string
   enabled: boolean
   intervalMin?: number
-  trigger?: any
-  steps?: any[]
+  trigger?: TriggerSpec
+  steps?: StepSpec[]
   lastRun?: string
   lastStatus?: 'ok' | 'error'
 }
@@ -20,8 +24,8 @@ interface Template {
   name: string
   description: string
   intervalMin?: number
-  trigger: any
-  steps: any[]
+  trigger: TriggerSpec
+  steps: StepSpec[]
 }
 
 interface Log {
@@ -137,7 +141,7 @@ export default function AutomationsWorkspace() {
     setEditName(r.name)
     setEditTrigger(r.trigger?.triggerId || 'manual')
     setEditTriggerCfg(r.trigger?.config || {})
-    setEditSteps((r.steps || []).map((s: any) => ({ actionId: s.actionId || '', config: s.config || {} })))
+    setEditSteps((r.steps || []).map(s => ({ actionId: s.actionId || '', config: s.config || {} })))
     setEditInterval(r.intervalMin || 60)
   }
 
@@ -163,7 +167,7 @@ export default function AutomationsWorkspace() {
 
   const addStep = () => setEditSteps(s => [...s, { actionId: pieces.actions[0]?.id || '', config: {} }])
   const removeStep = (i: number) => setEditSteps(s => s.filter((_, j) => j !== i))
-  const updateStep = (i: number, field: keyof typeof editSteps[0], val: any) =>
+  const updateStep = (i: number, field: keyof typeof editSteps[0], val: string | Record<string, string>) =>
     setEditSteps(s => s.map((x, j) => j === i ? { ...x, [field]: val } : x))
   const updateStepCfg = (i: number, key: string, val: string) =>
     setEditSteps(s => s.map((x, j) => j === i ? { ...x, config: { ...x.config, [key]: val } } : x))
@@ -384,7 +388,7 @@ export default function AutomationsWorkspace() {
                   })}
                   {editSteps.length === 0 && (
                     <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.82rem', border: '1px dashed var(--border-default)', borderRadius: 10 }}>
-                      Sin acciones. Pulsa "Añadir acción" para empezar.
+                      Sin acciones. Pulsa &quot;Añadir acción&quot; para empezar.
                     </div>
                   )}
                 </div>

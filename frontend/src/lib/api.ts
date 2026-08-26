@@ -1,5 +1,10 @@
 import axios from 'axios'
 import { useAuthStore } from '../store'
+import type {
+  Note, Task, CalendarEvent,
+  PromptPreset, DesignPayload, BrandKit,
+  WorkflowStep,
+} from '../types/api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -77,13 +82,13 @@ export const userAPI = {
 
 // ---- Notas y Tareas ----
 export const notesAPI = {
-  listNotes: () => api.get('/notes/notes'),
-  createNote: (data: { title?: string; content?: string; color?: string }) => api.post('/notes/notes', data),
-  updateNote: (id: string, data: any) => api.patch(`/notes/notes/${id}`, data),
-  deleteNote: (id: string) => api.delete(`/notes/notes/${id}`),
+  listNotes: () => api.get('/notes'),
+  createNote: (data: { title?: string; content?: string; color?: string }) => api.post('/notes', data),
+  updateNote: (id: string, data: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned'>>) => api.patch(`/notes/${id}`, data),
+  deleteNote: (id: string) => api.delete(`/notes/${id}`),
   listTasks: () => api.get('/notes/tasks'),
   createTask: (data: { title: string; priority?: string; dueDate?: string | null }) => api.post('/notes/tasks', data),
-  updateTask: (id: string, data: any) => api.patch(`/notes/tasks/${id}`, data),
+  updateTask: (id: string, data: Partial<Pick<Task, 'title' | 'done' | 'priority' | 'dueDate'>>) => api.patch(`/notes/tasks/${id}`, data),
   deleteTask: (id: string) => api.delete(`/notes/tasks/${id}`),
 }
 
@@ -112,7 +117,7 @@ export const notebooksAPI = {
 export const promptsAPI = {
   list: () => api.get('/prompts'),
   create: (data: { title: string; content: string }) => api.post('/prompts', data),
-  update: (id: string, data: any) => api.patch(`/prompts/${id}`, data),
+  update: (id: string, data: Partial<Pick<PromptPreset, 'title' | 'content'>>) => api.patch(`/prompts/${id}`, data),
   remove: (id: string) => api.delete(`/prompts/${id}`),
 }
 
@@ -155,7 +160,7 @@ export const emailAPI = {
 export const calendarAPI = {
   listEvents: (from?: string, to?: string) => api.get('/calendar/events', { params: { from, to } }),
   createEvent: (data: { title: string; notes?: string; start: string; end?: string | null; allDay?: boolean; color?: string }) => api.post('/calendar/events', data),
-  updateEvent: (id: string, data: any) => api.patch(`/calendar/events/${id}`, data),
+  updateEvent: (id: string, data: Partial<Pick<CalendarEvent, 'title' | 'notes' | 'start' | 'end' | 'allDay' | 'color'>>) => api.patch(`/calendar/events/${id}`, data),
   deleteEvent: (id: string) => api.delete(`/calendar/events/${id}`),
 }
 
@@ -168,7 +173,6 @@ export const documentsAPI = {
 }
 
 // ---- Studio: diseños guardados ----
-export interface DesignPayload { title: string; w: number; h: number; data: any; thumbnail?: string | null; isTemplate?: boolean }
 export const designsAPI = {
   list: () => api.get('/designs'),
   templates: () => api.get('/designs/templates'),
@@ -192,10 +196,9 @@ export const stockAPI = {
 }
 
 // ---- Studio: kit de marca ----
-export interface BrandKitPayload { colors: string[]; fonts: string[]; logoUrl?: string | null }
 export const brandKitAPI = {
   get: () => api.get('/brandkit'),
-  save: (k: BrandKitPayload) => api.put('/brandkit', k),
+  save: (k: BrandKit) => api.put('/brandkit', k),
 }
 
 // ---- Subscription ----
@@ -247,7 +250,7 @@ export async function sendMessageStream(
       body: JSON.stringify(data),
       signal,
     })
-  } catch (err: any) {
+  } catch {
     onError('No se pudo conectar con el servidor')
     return
   }
@@ -341,15 +344,95 @@ export async function sendMessageStream(
     // (Railway corta la conexión, timeout, fin abrupto...), igual cerramos
     // el ciclo para que isLoading vuelva a false y el input NO se congele.
     if (!settled) onDone(lastConvId, false)
-  } catch (err: any) {
+  } catch (err: unknown) {
     // Si el usuario detuvo la generación a propósito, no es un error
-    if (err?.name === 'AbortError') {
+    if ((err as { name?: string } | null)?.name === 'AbortError') {
       if (!settled) onDone(lastConvId, false)
       return
     }
-    if (!settled) onError(err.message || 'Error de conexión')
+    const msg = err instanceof Error ? err.message : ''
+    if (!settled) onError(msg || 'Error de conexión')
   } finally {
     reader.releaseLock()
   }
+}
+
+// ── Agentic Platform APIs ──
+
+export const mcpAPI = {
+  list: () => api.get('/mcp/servers'),
+  add: (data: { name: string; command: string; args: string[] }) => api.post('/mcp/servers', data),
+  remove: (name: string) => api.delete(`/mcp/servers/${name}`),
+  testTool: (fullName: string, input: Record<string, unknown>) => api.post(`/mcp/tools/${fullName}`, { input }),
+}
+
+export const sandboxAPI = {
+  exec: (code: string, language: string, timeoutMs?: number) =>
+    api.post('/sandbox/exec', { code, language, timeout_ms: timeoutMs }),
+  languages: () => api.get('/sandbox/languages'),
+}
+
+export const graphragAPI = {
+  sync: (data: { userId?: string; docId?: string }) => api.post('/graphrag/sync', data),
+  query: (query: string, limit?: number) => api.post('/graphrag/query', { query, limit }),
+  delete: (userId?: string) => api.delete('/graphrag', { data: { userId } }),
+}
+
+export const browserAPI = {
+  navigate: (url: string) => api.post('/browser/navigate', { url }),
+  screenshot: () => api.post('/browser/screenshot'),
+  action: (action: string, params: Record<string, unknown>) => api.post('/browser/action', { action, ...params }),
+  browse: (task: string, maxSteps?: number) => api.post('/browser/browse', { task, maxSteps }),
+}
+
+export const orchestratorAPI = {
+  run: (task: string, options?: { stream?: boolean; history?: { role: string; content: string }[]; resumeFrom?: string }) =>
+    api.post('/orchestrator/run', { task, ...options }),
+}
+
+export const ollamaAPI = {
+  listModels: () => api.get('/ollama/models'),
+  refreshModels: () => api.post('/ollama/models/refresh'),
+  pullModel: (name: string) => api.post('/ollama/models/pull', { name }, { 
+    responseType: 'stream' as const,
+    timeout: 300_000 
+  }),
+  deleteModel: (name: string) => api.delete(`/ollama/models/${name}`),
+  getRecommended: () => api.get('/ollama/recommended'),
+}
+
+export const healthAPI = {
+  check: () => api.get('/health'),
+  deep: () => api.get('/health/deep'),
+}
+
+export const webhookAPI = {
+  list: () => api.get('/webhooks'),
+  add: (data: { url: string; events: string[] }) => api.post('/webhooks', data),
+  remove: (id: string) => api.delete(`/webhooks/${id}`),
+}
+
+export const analyticsAPI = {
+  tools: (tool?: string) => api.get('/analytics/tools', { params: tool ? { tool } : {} }),
+  cache: () => api.get('/analytics/cache'),
+}
+
+export const workflowAPI = {
+  list: () => api.get('/workflows'),
+  create: (data: { name: string; description?: string; steps: WorkflowStep[] }) => api.post('/workflows', data),
+  run: (workflowOrId: string | { name: string; steps: WorkflowStep[] }) => api.post('/workflows/run', workflowOrId),
+  remove: (id: string) => api.delete(`/workflows/${id}`),
+}
+
+export const pluginAPI = {
+  list: () => api.get('/plugins'),
+  get: (id: string) => api.get(`/plugins/${id}`),
+  create: (data: { name: string; description: string; parameters: Record<string, unknown>; code: string }) => api.post('/plugins', data),
+  remove: (id: string) => api.delete(`/plugins/${id}`),
+}
+
+export const docsAPI = {
+  swagger: () => `${process.env.NEXT_PUBLIC_API_URL}/api/docs`,
+  spec: () => `${process.env.NEXT_PUBLIC_API_URL}/api/docs.json`,
 }
 

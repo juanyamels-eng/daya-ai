@@ -1,18 +1,23 @@
 'use client'
-import React, { useState, useRef, memo } from 'react'
+import React, { useState, memo, lazy, Suspense } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus, vs as vsLight } from 'react-syntax-highlighter/dist/cjs/styles/prism'
-import MermaidBlock from './MermaidBlock'
-import ChartBlock from './ChartBlock'
 import { runJavaScript, RUNNABLE_LANGS, type RunResult } from '../../lib/runJs'
 import { runPython, RUNNABLE_PYTHON } from '../../lib/runPython'
 import { Message } from '../../store'
 import { useAuthStore } from '../../store'
+
+const MermaidBlock = lazy(() => import('./MermaidBlock'))
+const ChartBlock = lazy(() => import('./ChartBlock'))
+
+const SyntaxHighlighter = lazy(() => import('react-syntax-highlighter').then(m => ({ default: m.Prism })))
+
+function CodeBlockFallback() {
+  return <div style={{ padding: '8px 12px', fontSize: '13px', color: '#888', background: '#1e1e1e', borderRadius: 6 }}>Loading...</div>
+}
 
 const API = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -34,17 +39,28 @@ function legacyCopy(text: string) {
   document.body.removeChild(el)
 }
 
-interface Props { message: Message; streaming?: boolean; onRegenerate?: () => void; onArtifact?: (artifact: { lang: string; code: string; title?: string }) => void; reasoning?: string; prevUserContent?: string }
+interface Props { message: Message; streaming?: boolean; onRegenerate?: () => void; onArtifact?: (artifact: { lang: string; code: string; title?: string }) => void; reasoning?: string; prevUserContent?: string; onEdit?: (messageId: string, content: string) => void }
+
+interface FactCheckResult { error?: string; reliabilityScore?: number; summary?: string; claims?: { claim: string; verdict: string; explanation?: string }[] }
 
 // memo evita que todos los mensajes anteriores se re-rendericen en cada chunk del stream.
+function formatTime(iso: string) {
+  if (!iso) return ''
+  try {
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  } catch { return '' }
+}
+
 // Solo se actualiza la burbuja cuyo content o streaming cambia.
-function MessageBubbleInner({ message, streaming, onRegenerate, onArtifact, reasoning, prevUserContent }: Props) {
+function MessageBubbleInner({ message, streaming, onRegenerate, onArtifact, reasoning, prevUserContent, onEdit }: Props) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
   const [feedback, setFeedback] = useState<1 | -1 | 0>(0)
   const [speaking, setSpeaking] = useState(false)
   const [factChecking, setFactChecking] = useState(false)
-  const [factResult, setFactResult] = useState<any>(null)
+  const [factResult, setFactResult] = useState<FactCheckResult | null>(null)
 
   // Leer en voz alta con la síntesis del navegador (gratis, sin servidor).
   const toggleSpeak = () => {
@@ -103,7 +119,7 @@ function MessageBubbleInner({ message, streaming, onRegenerate, onArtifact, reas
     const hasImages = !!message.images?.length
     const hasFiles = !!message.files?.length
     return (
-      <div className="daya-user-wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, marginBottom: 20, animation: 'dayaRise 0.26s cubic-bezier(0.16,1,0.3,1) both' }}>
+      <div className="daya-user-wrap" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, marginBottom: 20, animation: 'dayaRise 0.26s cubic-bezier(0.16,1,0.3,1) both' }}>
         {hasImages && message.images!.map((src, i) => (
           <img key={i} src={src} alt="adjunto"
             style={{ maxWidth: 'min(320px, 75%)', maxHeight: 340, borderRadius: 14, objectFit: 'cover', border: '1px solid var(--border-default)', display: 'block' }} />
@@ -117,20 +133,48 @@ function MessageBubbleInner({ message, streaming, onRegenerate, onArtifact, reas
           </div>
         ))}
         {message.content && (
-          <div className="daya-user-bubble" style={{
-            maxWidth: '74%',
-            padding: '10px 16px',
-            borderRadius: '16px 16px 4px 16px',
-            background: 'color-mix(in srgb, var(--accent-500) 13%, var(--bg-surface))',
-            color: 'var(--text-primary)',
-            fontSize: '0.93rem',
-            lineHeight: 1.65,
-            fontFamily: 'var(--font-body)',
-            wordBreak: 'break-word',
-            whiteSpace: 'pre-wrap',
-            border: '1px solid color-mix(in srgb, var(--accent-500) 28%, transparent)',
-          }}>
-            {message.content}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, maxWidth: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, maxWidth: '100%', flexDirection: 'row-reverse' }}>
+              <div className="daya-user-bubble" style={{
+                maxWidth: '74%',
+                padding: '10px 16px',
+                borderRadius: '16px 16px 4px 16px',
+                background: 'color-mix(in srgb, var(--accent-500) 13%, var(--bg-surface))',
+                color: 'var(--text-primary)',
+                fontSize: '0.93rem',
+                lineHeight: 1.65,
+                fontFamily: 'var(--font-body)',
+                wordBreak: 'break-word',
+                whiteSpace: 'pre-wrap',
+                border: '1px solid color-mix(in srgb, var(--accent-500) 28%, transparent)',
+              }}>
+                {message.content}
+              </div>
+              {onEdit && (
+                <button onClick={() => onEdit(message.id, message.content)}
+                  title="Editar mensaje"
+                  className="daya-user-action"
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: 4, borderRadius: 6, color: 'var(--text-tertiary)',
+                    opacity: 0, transition: 'opacity 0.15s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0, marginBottom: 2,
+                  }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.15s' }} className="daya-user-actions">
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', padding: '4px 6px', lineHeight: 1 }}>{formatTime(message.createdAt)}</span>
+              <button onClick={copyText} title="Copiar"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {copied
+                  ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                }
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -176,8 +220,8 @@ function MessageBubbleInner({ message, streaming, onRegenerate, onArtifact, reas
               // Mientras streamea, el bloque llega incompleto: mostramos el código y
               // renderizamos el diagrama/gráfico SOLO cuando la respuesta termina
               // (evita el parpadeo de intentar dibujar JSON/mermaid a medias).
-              if (lang === 'mermaid') return streaming ? <CodeBlock lang="mermaid" code={raw} /> : <MermaidBlock code={raw} />
-              if (lang === 'chart') return streaming ? <CodeBlock lang="json" code={raw} /> : <ChartBlock code={raw} />
+              if (lang === 'mermaid') return streaming ? <CodeBlock lang="mermaid" code={raw} /> : <Suspense fallback={<CodeBlockFallback />}><MermaidBlock code={raw} /></Suspense>
+              if (lang === 'chart') return streaming ? <CodeBlock lang="json" code={raw} /> : <Suspense fallback={<CodeBlockFallback />}><ChartBlock code={raw} /></Suspense>
               return <CodeBlock lang={lang} code={raw} onArtifact={onArtifact} />
             },
             a({ href, children, ...props }) {
@@ -195,6 +239,7 @@ function MessageBubbleInner({ message, streaming, onRegenerate, onArtifact, reas
 
         {!streaming && message.content && (
           <div className="daya-msg-actions" style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, flexWrap: 'nowrap', overflow: 'hidden' }}>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', padding: '0 4px', lineHeight: 1, marginRight: 4, flexShrink: 0 }}>{formatTime(message.createdAt)}</span>
             <button onClick={copyText} title={copied ? 'Copiado' : 'Copiar'}
               style={{ ...actionIconBtn, color: copied ? 'var(--green)' : 'var(--text-tertiary)', transition: 'background 0.15s, color 0.18s, transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; if (!copied) e.currentTarget.style.color = 'var(--text-primary)' }}
@@ -248,13 +293,13 @@ function MessageBubbleInner({ message, streaming, onRegenerate, onArtifact, reas
           <div style={{ marginTop: 10, padding: '14px 16px', borderRadius: 12, background: 'var(--bg-surface)', border: '1px solid var(--border-default)', fontSize: '0.82rem', animation: 'dayaRise 0.3s cubic-bezier(0.16,1,0.3,1) both' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
               <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>VERIFICACIÓN</span>
-              <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.88rem', color: factResult.reliabilityScore >= 70 ? '#16a34a' : factResult.reliabilityScore >= 40 ? '#d97706' : '#ef4444' }}>
+              <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: '0.88rem', color: (factResult.reliabilityScore ?? 0) >= 70 ? '#16a34a' : (factResult.reliabilityScore ?? 0) >= 40 ? '#d97706' : '#ef4444' }}>
                 {factResult.reliabilityScore}% fiable
               </span>
             </div>
             {factResult.summary && <p style={{ color: 'var(--text-secondary)', marginBottom: 10, lineHeight: 1.5 }}>{factResult.summary}</p>}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {factResult.claims?.map((c: any, i: number) => {
+              {factResult.claims?.map((c, i) => {
                 const v = c.verdict
                 const color = v === 'respaldada' ? '#16a34a' : v === 'refutada' ? '#ef4444' : '#d97706'
                 const label = v === 'respaldada' ? '✓' : v === 'refutada' ? '✗' : '?'
@@ -368,7 +413,7 @@ function CodeBlock({ lang, code, onArtifact }: { lang: string; code: string; onA
         : await runJavaScript(code)
       setRunRes(res)
     }
-    catch (e: any) { setRunRes({ logs: [], error: String(e?.message || e), durationMs: 0 }) }
+    catch (e: unknown) { setRunRes({ logs: [], error: String(e instanceof Error ? e.message : e), durationMs: 0 }) }
     finally { setRunning(false); setRunStatus('') }
   }
 
@@ -523,7 +568,7 @@ function CodeBlock({ lang, code, onArtifact }: { lang: string; code: string; onA
       </div>
       <SyntaxHighlighter
         language={lang || 'text'}
-        style={dark ? vscDarkPlus : vsLight}
+        style={{}}
         customStyle={{ margin: 0, borderRadius: 0, fontSize: '0.84rem', lineHeight: 1.65, background: codeBg, padding: '14px 16px', overflowX: 'auto' }}
         showLineNumbers={lines > 4}
         lineNumberStyle={{ color: numColor, fontSize: '0.75rem', minWidth: '2.2em', paddingRight: '1em', userSelect: 'none' }}
@@ -537,13 +582,6 @@ function CodeBlock({ lang, code, onArtifact }: { lang: string; code: string; onA
   )
 }
 
-// Estilos de la fila de acciones (copiar, like, dislike, regenerar) — neutros y limpios
-const actionBtn: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px', borderRadius: 6,
-  background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)',
-  fontSize: '0.72rem', fontWeight: 500, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap',
-  transition: 'all 0.15s', flexShrink: 0,
-}
 const actionIconBtn: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5px 6px',
   borderRadius: 6, background: 'transparent', border: 'none', cursor: 'pointer',

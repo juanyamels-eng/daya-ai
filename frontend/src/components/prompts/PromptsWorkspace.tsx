@@ -4,16 +4,20 @@ import { useRouter } from 'next/navigation'
 import { promptsAPI } from '../../lib/api'
 import { toast } from '../../lib/toast'
 
+interface Preset { id: string; title: string; content: string }
+
 export default function PromptsWorkspace() {
   const router = useRouter()
-  const [presets, setPresets] = useState<any[]>([])
+  const [presets, setPresets] = useState<Preset[]>([])
   const [loading, setLoading] = useState(true)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [creating, setCreating] = useState(false)
 
   const load = async () => { try { const { data } = await promptsAPI.list(); setPresets(data || []) } catch {} finally { setLoading(false) } }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
   const create = async () => {
     if (!title.trim() || !content.trim()) return
@@ -26,11 +30,11 @@ export default function PromptsWorkspace() {
   const remove = async (id: string) => { setPresets(prev => prev.filter(p => p.id !== id)); promptsAPI.remove(id).catch(() => {}) }
 
   // Usar la plantilla: la deja lista en el chat (vía sessionStorage) y abre el chat
-  const use = (p: any) => {
+  const use = (p: Preset) => {
     try { sessionStorage.setItem('daya_prompt_seed', p.content) } catch {}
     router.push('/dashboard')
   }
-  const copy = (p: any) => { navigator.clipboard?.writeText(p.content); toast('Plantilla copiada', 'success') }
+  const copy = (p: Preset) => { navigator.clipboard?.writeText(p.content); toast('Plantilla copiada', 'success') }
 
   return (
     <div className="daya-page" style={{ flex: 1, height: '100%', overflowY: 'auto', background: 'var(--bg-base)' }}>

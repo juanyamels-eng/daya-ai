@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from 'express'
 import { Prisma } from '@prisma/client'
 import { ZodError } from 'zod'
+import { captureError } from '../services/sentry'
 
 export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction) {
   if (res.headersSent) return   // stream ya iniciado, no tocar el status
 
-  const userId = (req as any).userId || 'anon'
+  const userId = req.userId || 'anon'
   const route = `${req.method} ${req.path}`
 
   // Errores de validación Zod → 400 (mensaje legible para el usuario)
@@ -29,6 +30,7 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
   }
 
   // Resto de errores: log completo en servidor, mensaje genérico al cliente
+  captureError(err, { route, userId })
   const isProd = process.env.NODE_ENV === 'production'
   if (isProd) {
     console.error(`[ERROR] ${route} — user:${userId} — ${err.message}`)

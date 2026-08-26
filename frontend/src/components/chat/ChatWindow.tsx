@@ -1,6 +1,5 @@
 'use client'
-import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { useChatStore, useAuthStore } from '../../store'
 import { toast } from '../../lib/toast'
 import { sendMessageStream, chatAPI, shareAPI } from '../../lib/api'
@@ -12,6 +11,7 @@ import MessageBubble from './MessageBubble'
 import ChatSearch from './ChatSearch'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import ArtifactPanel, { Artifact } from './ArtifactPanel'
+import { VoiceOverlay } from '../voice/VoiceOverlay'
 import PageTitle from '../PageTitle'
 import { modelLabel } from '../../lib/modelLabel'
 
@@ -53,6 +53,12 @@ const TOOL_LABEL: Record<string, string> = {
   crear_evento: 'Agendando el evento…',
   crear_documento: 'Preparando el documento…',
   ver_imagen: 'Mirando la imagen…',
+  extraer_texto_imagen: 'Leyendo el texto de la imagen…',
+  resumir_video_youtube: 'Resumiendo el video…',
+  crear_diagrama: 'Dibujando el diagrama…',
+  hablar: 'Preparando el audio…',
+  crear_automatizacion: 'Creando la automatización…',
+  gestionar_automatizaciones: 'Gestionando automatizaciones…',
 }
 const EXPORT_FORMATS: { id: ExportFormat; ext: string; label: string }[] = [
   { id: 'pdf',  ext: 'PDF',  label: 'Documento editorial' },
@@ -97,6 +103,35 @@ function detectDocumentRequest(message: string): { isDoc: boolean; docType: stri
 
 interface WikiImage { title: string; thumb: string; url: string }
 
+interface WikiPage { title?: string; imageinfo?: { url: string; mime?: string; thumburl?: string }[] }
+
+interface DocCard { docType: string; fileName: string; downloadUrl: string; previewHTML?: string }
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number
+  results: { length: number; [index: number]: { length: number; [alt: number]: { transcript: string; isFinal?: boolean } } }
+}
+
+interface SpeechRecognitionErrorEventLike { error?: string }
+
+interface SpeechRecognitionLike {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null
+  onerror: ((e: SpeechRecognitionErrorEventLike) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type SpeechRecognitionCtor = new () => SpeechRecognitionLike
+
+// Locale de la app → código BCP-47 para reconocimiento y síntesis de voz
+const SPEECH_LANGS: Record<string, string> = {
+  es: 'es-ES', en: 'en-US', pt: 'pt-PT', fr: 'fr-FR', de: 'de-DE', it: 'it-IT',
+}
+
 function detectImageSearch(message: string): string | null {
   const m = message.trim()
   const match = m.match(
@@ -112,7 +147,7 @@ async function searchWikimediaImages(query: string): Promise<WikiImage[]> {
   const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=filetype:bitmap+${encodeURIComponent(query)}&gsrlimit=18&prop=imageinfo&iiprop=url|mime&iiurlwidth=400&format=json&origin=*`
   const res = await fetch(url, { signal: AbortSignal.timeout(12000) })
   const data = await res.json()
-  const pages = Object.values(data.query?.pages || {}) as any[]
+  const pages = Object.values(data.query?.pages || {}) as WikiPage[]
   return pages
     .filter(p => {
       const info = p.imageinfo?.[0]
@@ -121,13 +156,15 @@ async function searchWikimediaImages(query: string): Promise<WikiImage[]> {
       return mime.startsWith('image/') && !mime.includes('svg') && !mime.includes('gif')
     })
     .map(p => {
-      const info = p.imageinfo[0]
+      const info = p.imageinfo?.[0]
+      if (!info) return null
       return {
         title: (p.title || '').replace('File:', '').replace(/\.(jpe?g|png|webp|tiff?)$/i, '').replace(/_/g, ' ').trim(),
         thumb: info.thumburl || info.url,
         url: info.url,
       }
     })
+    .filter((img): img is { title: string; thumb: string; url: string } => img !== null)
     .slice(0, 12)
 }
 
@@ -416,7 +453,7 @@ function ThinkingIndicator({ deep, web, doc, model, status }: { deep?: boolean; 
   )
 }
 
-function DocumentMessage({ docType, fileName, downloadUrl, previewHTML, onOpen }: any) {
+function DocumentMessage({ docType, fileName, downloadUrl, previewHTML, onOpen }: { docType: string; fileName: string; downloadUrl: string; previewHTML?: string; onOpen?: (doc: DocCard) => void }) {
   const colors: Record<string, string> = { pdf: '#ef4444', word: '#2563eb', excel: '#16a34a', powerpoint: '#d97706', zip: '#7c3aed' }
   const labels: Record<string, string> = { pdf: 'PDF', word: 'Word', excel: 'Excel', powerpoint: 'Presentación', zip: 'ZIP' }
   const color = colors[docType] || '#18181b'
@@ -483,7 +520,7 @@ function DocumentMessage({ docType, fileName, downloadUrl, previewHTML, onOpen }
 }
 
 // ════════ VISOR GRANDE DE DOCUMENTOS (panel tipo artefacto, como Claude) ════════
-function DocumentViewer({ doc, onClose }: { doc: any; onClose: () => void }) {
+function DocumentViewer({ doc, onClose }: { doc: DocCard | null; onClose: () => void }) {
   useEffect(() => {
     if (!doc) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -547,7 +584,6 @@ function DocumentViewer({ doc, onClose }: { doc: any; onClose: () => void }) {
 export default function ChatWindow() {
   const t = useT()
   const lang = useI18n((s) => s.lang)
-  const router = useRouter()
   const { user, token } = useAuthStore()
   const { messages, addMessage, activeConversation, isLoading, setLoading,
     streamingContent, appendStream, setStream, clearStream, setActiveConversation, setActiveId, setConversations } = useChatStore()
@@ -556,7 +592,6 @@ export default function ChatWindow() {
 
   // Sugerencias del chat vacío, a partir de los títulos de las últimas
   // conversaciones. Se recalculan solo cuando cambia la lista.
-  const conversations = useChatStore((s) => s.conversations)
 
   // Ctrl+F busca DENTRO de la conversación en vez de abrir el buscador del
   // navegador (que no ve los mensajes que aún no se han desplazado a la vista).
@@ -614,16 +649,17 @@ export default function ChatWindow() {
   }, [])
   const [isFocused, setIsFocused] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
-  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [voiceOpen, setVoiceOpen] = useState(false)
+  const [isTranscribing] = useState(false)
   const [attachedFiles, setAttachedFiles] = useState<File[]>([])
   const [dragOver, setDragOver] = useState(false)
   // Cuántos elementos anidados tiene el cursor encima mientras arrastra.
   const dragDepth = useRef(0)
-  const [docMessages, setDocMessages] = useState<Record<string, any>>({})
+  const [docMessages, setDocMessages] = useState<Record<string, DocCard>>({})
   const [imageMessages, setImageMessages] = useState<Record<string, { query: string; images?: WikiImage[]; error?: boolean }>>({})
   const [genImages, setGenImages] = useState<Record<string, GenImageData>>({})
   const [imgMode, setImgMode] = useState(false)
-  const [viewerDoc, setViewerDoc] = useState<any>(null)
+  const [viewerDoc, setViewerDoc] = useState<DocCard | null>(null)
   const [artifact, setArtifact] = useState<Artifact | null>(null)
   const [lightbox, setLightbox] = useState<{ url: string; prompt?: string } | null>(null)
   // Panel de preguntas inteligentes universal (imagen, documento, …). docType solo aplica a documentos.
@@ -633,7 +669,7 @@ export default function ChatWindow() {
   const [activeModel, setActiveModel] = useState('')
   const [docPending, setDocPending] = useState(false)
   const [plusOpen, setPlusOpen] = useState(false)
-  const [chatMode, setChatMode] = useState<'chat' | 'voice'>('chat')
+  const [chatMode] = useState<'chat' | 'voice'>('chat')
   const [webMode, setWebMode] = useState(() => { try { return localStorage.getItem('daya_web') === '1' } catch { return false } })
   // Nivel por defecto: NORMAL (equilibrado). Se respeta la elección previa guardada.
   const [thinkLevel, setThinkLevel] = useState<'fast' | 'normal' | 'deep'>(() => { try { const v = localStorage.getItem('daya_think'); return v === 'fast' || v === 'normal' || v === 'deep' ? v : 'normal' } catch { return 'normal' } })
@@ -658,10 +694,9 @@ export default function ChatWindow() {
   const atBottomRef = useRef(true)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [editingMsg, setEditingMsg] = useState<{ id: string; content: string } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const recognitionRef = useRef<any>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
   const speechBaseRef = useRef('')
   const convIdRef = useRef<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -897,7 +932,7 @@ export default function ChatWindow() {
     if (!tok) return
     fetch(`${API}/api/images`, { headers: { Authorization: `Bearer ${tok}` } })
       .then(r => r.ok ? r.json() : [])
-      .then((imgs: any[]) => {
+      .then((imgs: { messageId?: string; prompt: string; model: string; url: string }[]) => {
         if (!imgs.length) return
         setGenImages(prev => {
           const next = { ...prev }
@@ -971,7 +1006,7 @@ export default function ChatWindow() {
         // en el historial, para que el documento reaparezca al reabrir el chat.
         const cardData = { docType, fileName: data.fileName, downloadUrl: data.downloadUrl }
         const marker = `__DOCJSON__${JSON.stringify(cardData)}`
-        setDocMessages((prev: any) => ({ ...prev, [data.downloadUrl]: { ...cardData, previewHTML: data.previewHTML } }))
+        setDocMessages((prev: Record<string, DocCard>) => ({ ...prev, [data.downloadUrl]: { ...cardData, previewHTML: data.previewHTML } }))
         addMessage({ id: (Date.now() + 1).toString(), role: 'assistant', content: marker, createdAt: new Date().toISOString() })
 
         // Persistir en el historial (crea conversación si no había)
@@ -984,15 +1019,15 @@ export default function ChatWindow() {
             if (!useChatStore.getState().activeConversation) {
               setActiveId({ id: r.data.conversationId, title: r.data.title || data.fileName, model: 'claude', mode: 'SINGLE', updatedAt: new Date().toISOString() })
             }
-            chatAPI.getConversations().then((rr: any) => setConversations(rr.data)).catch(() => {})
+            chatAPI.getConversations().then((rr) => setConversations(rr.data)).catch(() => {})
           }
         } catch {}
       } else {
         addMessage({ id: (Date.now()+1).toString(), role: 'assistant', content: `No pude generar el documento: ${data.error || 'Error'}. Intenta de nuevo.`, createdAt: new Date().toISOString() })
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setLoading(false)
-      const timedOut = e?.name === 'AbortError'
+      const timedOut = (e as { name?: string } | null)?.name === 'AbortError'
       addMessage({ id: (Date.now()+1).toString(), role: 'assistant', content: timedOut
         ? 'La creación del documento tardó demasiado. Suele pasar con temas muy largos: intenta de nuevo o pídelo más corto.'
         : 'No pude conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.', createdAt: new Date().toISOString() })
@@ -1020,6 +1055,18 @@ export default function ChatWindow() {
     setInput('')
     try { sessionStorage.removeItem('daya_draft') } catch {}
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
+
+    // ===== EDITAR MENSAJE: reemplaza el mensaje editado y trunca después =====
+    if (editingMsg) {
+      const { replaceMessage, setMessages } = useChatStore.getState()
+      const idx = messages.findIndex(m => m.id === editingMsg.id)
+      if (idx !== -1) {
+        replaceMessage(editingMsg.id, msg)
+        setMessages(messages.slice(0, idx + 1))
+        setMsgReasoning(prev => { const next = { ...prev }; delete next[editingMsg.id]; return next })
+      }
+      setEditingMsg(null)
+    }
 
     // ===== URL AUTOMÁTICA: si el mensaje contiene una URL, se lee la página =====
     // Endpoint propio /api/read-url (ya no usa el agente).
@@ -1081,7 +1128,7 @@ export default function ChatWindow() {
           buffer = lines.pop() || ''
           for (const line of lines) {
             if (!line.startsWith('data: ')) continue
-            let data: any
+            let data: { status?: string; error?: string; done?: boolean; title?: string; markdown?: string; sources?: unknown[] }
             try { data = JSON.parse(line.slice(6)) } catch { continue }
             if (data.status) setResearchStatus(data.status)
             if (data.error) {
@@ -1100,10 +1147,10 @@ export default function ChatWindow() {
         setLoading(false)
         setResearchStatus('')
         return
-      } catch (e: any) {
+      } catch (e: unknown) {
         // Si falla (sin key u otro error), continúa como chat normal abajo
         setResearchStatus('')
-        if (e.message !== 'fallback') {
+        if ((e instanceof Error ? e.message : '') !== 'fallback') {
           setLoading(false)
           addMessage({ id: Date.now().toString(), role: 'assistant', content: 'Hubo un error al investigar. Intenta de nuevo.', createdAt: new Date().toISOString() })
           return
@@ -1192,7 +1239,7 @@ export default function ChatWindow() {
               }
               if (!activeConversation) setActiveId({ id: conversationId, title: (msg || 'Análisis de imagen').slice(0, 60), model: 'claude', mode: 'SINGLE', updatedAt: new Date().toISOString() })
             },
-            (err) => { setLoading(false); addMessage({ id: Date.now().toString(), role: 'assistant', content: 'No pude analizar la imagen. Inténtalo de nuevo.', createdAt: new Date().toISOString() }) }
+            (_err) => { setLoading(false); addMessage({ id: Date.now().toString(), role: 'assistant', content: 'No pude analizar la imagen. Inténtalo de nuevo.', createdAt: new Date().toISOString() }) }
           )
         } catch {
           addMessage({ id: Date.now().toString(), role: 'assistant', content: 'No pude analizar la imagen.', createdAt: new Date().toISOString() })
@@ -1220,7 +1267,7 @@ export default function ChatWindow() {
             if (ins.summary) lines.push(`**Resumen:** ${ins.summary}`)
             if (ins.actionItems?.length) {
               lines.push('\n**Tareas:**')
-              ins.actionItems.forEach((a: any) => lines.push(`- [ ] ${a.task}${a.owner ? ` — ${a.owner}` : ''}${a.due ? ` (${a.due})` : ''}`))
+              ins.actionItems.forEach((a: { task: string; owner?: string; due?: string }) => lines.push(`- [ ] ${a.task}${a.owner ? ` — ${a.owner}` : ''}${a.due ? ` (${a.due})` : ''}`))
             }
             if (ins.decisions?.length) {
               lines.push('\n**Decisiones:**')
@@ -1286,10 +1333,10 @@ export default function ChatWindow() {
           addMessage({ id: (Date.now() + 1).toString(), role: 'assistant', content: `No pude leer el archivo: ${data.error || 'Error desconocido'}.`, createdAt: new Date().toISOString() })
         }
         return
-      } catch (e: any) {
+      } catch (e: unknown) {
         setLoading(false)
-        const timedOut = e?.name === 'AbortError'
-        addMessage({ id: (Date.now() + 1).toString(), role: 'assistant', content: timedOut
+        const timedOut = (e as { name?: string } | null)?.name === 'AbortError'
+        addMessage({ id: (Date.now()+1).toString(), role: 'assistant', content: timedOut
           ? 'El archivo tardó demasiado en procesarse. Si es muy grande o tiene muchas páginas, prueba con uno más corto.'
           : 'No pude subir el archivo. Revisa tu conexión e inténtalo de nuevo.', createdAt: new Date().toISOString() })
         return
@@ -1371,7 +1418,7 @@ export default function ChatWindow() {
           if (chatMode === 'voice' && typeof window !== 'undefined' && 'speechSynthesis' in window) {
             const clean = finalContent.replace(/[#*`_~\[\]>|]/g, '').slice(0, 2000)
             const utt = new SpeechSynthesisUtterance(clean)
-            utt.lang = lang === 'en' ? 'en-US' : 'es-ES'; utt.rate = 1.05; utt.pitch = 1
+            utt.lang = SPEECH_LANGS[lang] || 'es-ES'; utt.rate = 1.05; utt.pitch = 1
             window.speechSynthesis.cancel()
             window.speechSynthesis.speak(utt)
           }
@@ -1418,7 +1465,7 @@ export default function ChatWindow() {
     }
     await doStream()
     } finally { sendingRef.current = false }
-  }, [input, isLoading, activeConversation, attachedFiles, token, messages.length, feedStream, resetTypewriter, waitTypewriterDone, chatMode, addMessage, setInput])
+  }, [input, isLoading, activeConversation, attachedFiles, token, messages, feedStream, resetTypewriter, waitTypewriterDone, chatMode, addMessage, setInput, editingMsg])
 
   // Envía un prompt enriquecido directamente al chat (para los flujos de preguntas de código)
   const sendChatDirect = useCallback(async (enrichedPrompt: string) => {
@@ -1504,7 +1551,7 @@ export default function ChatWindow() {
           addMessage({ id: (Date.now()+1).toString(), role: 'assistant', content: finalContent, createdAt: new Date().toISOString() })
           clearStream()
         },
-        (error) => {
+        (_error) => {
           setLoading(false)
           abortRef.current = null
           if (stoppedRef.current) { stoppedRef.current = false; return }
@@ -1519,21 +1566,22 @@ export default function ChatWindow() {
 
   const toggleRecording = () => {
     if (isRecording) { try { recognitionRef.current?.stop() } catch { } setIsRecording(false); return }
-    const SR: any = (typeof window !== 'undefined') && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+    const w = typeof window !== 'undefined' ? (window as unknown as { SpeechRecognition?: SpeechRecognitionCtor; webkitSpeechRecognition?: SpeechRecognitionCtor }) : null
+    const SR = w && (w.SpeechRecognition || w.webkitSpeechRecognition)
     if (!SR) { toast('Tu navegador no soporta el dictado por voz. Prueba con Chrome o Edge.', 'error'); return }
     try {
       const rec = new SR()
-      rec.lang = 'es-ES'
+      rec.lang = SPEECH_LANGS[lang] || 'es-ES'
       rec.continuous = true
       rec.interimResults = true
       // Texto que ya había en la barra: lo dictado se va añadiendo a esto, en vivo.
       speechBaseRef.current = input ? input + ' ' : ''
-      rec.onresult = (e: any) => {
+      rec.onresult = (e: SpeechRecognitionEventLike) => {
         let txt = ''
         for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript
         setInput((speechBaseRef.current + txt).replace(/[ \t]+/g, ' ').trimStart())
       }
-      rec.onerror = (e: any) => {
+      rec.onerror = (e: SpeechRecognitionErrorEventLike) => {
         if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') toast('Permite el micrófono en tu navegador para dictar.', 'error')
         setIsRecording(false)
       }
@@ -1598,12 +1646,12 @@ export default function ChatWindow() {
 
   // Renombrar / fijar el chat activo desde el menú del título.
   const chatTitle = activeConversation?.title || 'Conversación'
-  const chatIsPinned = !!(activeConversation as any)?.pinned
+  const chatIsPinned = !!activeConversation?.pinned
   const commitTitleRename = async () => {
     const title = titleDraft.trim()
     setRenaming(false); setTitleMenuOpen(false)
     if (!title || !activeConversation) return
-    setActiveConversation({ ...activeConversation, title } as any)
+    setActiveConversation({ ...activeConversation, title })
     setConversations(useChatStore.getState().conversations.map(c => c.id === activeConversation.id ? { ...c, title } : c))
     try { const { chatAPI } = await import('../../lib/api'); await chatAPI.renameConversation(activeConversation.id, title) } catch {}
   }
@@ -1611,9 +1659,9 @@ export default function ChatWindow() {
     setTitleMenuOpen(false)
     if (!activeConversation) return
     const next = !chatIsPinned
-    setActiveConversation({ ...activeConversation, pinned: next } as any)
+    setActiveConversation({ ...activeConversation, pinned: next })
     const updated = useChatStore.getState().conversations.map(c => c.id === activeConversation.id ? { ...c, pinned: next } : c)
-    updated.sort((a: any, b: any) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+    updated.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
     setConversations(updated)
     try { const { chatAPI } = await import('../../lib/api'); await chatAPI.pinConversation(activeConversation.id, next) } catch {}
   }
@@ -1718,10 +1766,13 @@ export default function ChatWindow() {
       {/* Lightbox de imágenes (ampliar al hacer clic) */}
       {lightbox && <ImageLightbox url={lightbox.url} prompt={lightbox.prompt} onClose={() => setLightbox(null)} />}
 
+      {/* Modo voz manos libres (overlay a pantalla completa) */}
+      {voiceOpen && <VoiceOverlay onClose={() => setVoiceOpen(false)} conversationId={activeConversation?.id} />}
+
       {/* Borde superior (sin barra ni línea): nombre del chat con menú a la izquierda,
           Exportar a la derecha. No hacen scroll con el chat. */}
       {!isEmpty && (
-        <div style={{ position: 'absolute', top: 8, left: 0, right: 0, zIndex: 30, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, padding: '0 14px', pointerEvents: 'none' }}>
+        <div className="daya-chat-header" style={{ position: 'absolute', top: 8, left: 0, right: 0, zIndex: 30, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, padding: '0 14px', pointerEvents: 'none' }}>
           {/* Nombre del chat + menú (renombrar / fijar / ver y descargar lo creado) */}
           <div style={{ position: 'relative', pointerEvents: 'auto', maxWidth: '72%' }}>
             {renaming ? (
@@ -1914,10 +1965,12 @@ export default function ChatWindow() {
                 }} /></div>
               }
               const isLastAssistant = i === messages.length - 1 && msg.role === 'assistant' && !isLoading && !streamingContent
+              const isEditableUser = msg.role === 'user' && !isLoading && !streamingContent
               return (
                 <div key={msg.id} id={'m-' + msg.id} style={{ animation: 'dayaRise 0.34s cubic-bezier(0.16,1,0.3,1) both' }}>
                   <MessageBubble message={msg} onRegenerate={isLastAssistant ? handleRegenerate : undefined} onArtifact={setArtifact} reasoning={msgReasoning[msg.id]}
-                    prevUserContent={msg.role === 'assistant' ? [...messages.slice(0, i)].reverse().find(m => m.role === 'user')?.content : undefined} />
+                    prevUserContent={msg.role === 'assistant' ? [...messages.slice(0, i)].reverse().find(m => m.role === 'user')?.content : undefined}
+                    onEdit={isEditableUser ? (id, content) => { setInput(content); setEditingMsg({ id, content }); textareaRef.current?.focus() } : undefined} />
                 </div>
               )
             })}
@@ -1954,7 +2007,7 @@ export default function ChatWindow() {
         </button>
       )}
 
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20, padding: '20px 24px 18px', background: 'linear-gradient(to top, var(--bg-base) 64%, transparent)' }}>
+      <div className="daya-composer-outer" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 20, padding: '20px 24px 18px', background: 'linear-gradient(to top, var(--bg-base) 64%, transparent)' }}>
         <div className="daya-chat-col" style={{ maxWidth: 720, margin: '0 auto', position: 'relative' }}>
           {attachedFiles.length > 0 && (
             <div className="stagger" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10, padding: '2px 2px' }}>
@@ -1965,6 +2018,16 @@ export default function ChatWindow() {
           )}
 
           <div className={`daya-composer${isFocused ? ' daya-composer--focused' : ''}`}>
+            {editingMsg && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px 6px', borderBottom: '1px solid var(--border-default)', marginBottom: 4 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                <span style={{ fontSize: '0.74rem', color: 'var(--accent-400)', fontWeight: 600, flex: 1 }}>Editando mensaje</span>
+                <button onClick={() => { setEditingMsg(null); setInput('') }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: 'var(--text-tertiary)', display: 'flex', fontSize: '0.72rem', fontWeight: 500, fontFamily: 'var(--font-body)' }}>
+                  Cancelar
+                </button>
+              </div>
+            )}
             <textarea ref={textareaRef} value={input}
               onChange={e => setInput(e.target.value.slice(0, 8000))}
               onPaste={e => {
@@ -2088,7 +2151,7 @@ export default function ChatWindow() {
                 else if (/analiza|compara|estrategia|investiga a|en detalle|paso a paso/.test(m)) { emoji = '🧠'; label = 'Análisis' }
                 if (!label) return null
                 return (
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', whiteSpace: 'nowrap', animation: 'dayaRise 0.18s both' }}>
+                  <span className="daya-task-hint" style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', whiteSpace: 'nowrap', animation: 'dayaRise 0.18s both' }}>
                     {emoji} {label}
                   </span>
                 )
@@ -2136,6 +2199,13 @@ export default function ChatWindow() {
                     ? <div style={{ width: 13, height: 13, border: '2px solid var(--border-default)', borderTopColor: 'var(--text-secondary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                     : <svg width="14" height="14" viewBox="0 0 24 24" fill={isRecording ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>}
                   {isRecording && <span style={{ position: 'absolute', inset: 0, borderRadius: 8, border: '2px solid var(--red)', animation: 'micPulse 1s ease infinite' }} />}
+                </button>
+                {/* Modo voz: conversación manos libres (escucha → piensa → habla) */}
+                <button onClick={() => setVoiceOpen(true)} title="Modo voz — conversación manos libres" aria-label="Abrir modo voz"
+                  style={{ width: 30, height: 30, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-elevated)'; e.currentTarget.style.color = 'var(--accent-500)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-tertiary)' }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 14v-2a9 9 0 0 1 18 0v2"/><path d="M21 16a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h3zM3 16a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-2a2 2 0 0 0-2-2H3z"/></svg>
                 </button>
                 <button onClick={isLoading ? handleStop : handleSend} disabled={!isLoading && !input.trim() && attachedFiles.length === 0}
                   aria-label={isLoading ? 'Detener generación' : 'Enviar mensaje'}

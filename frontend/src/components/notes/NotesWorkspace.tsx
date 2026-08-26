@@ -6,21 +6,22 @@ import { useTabSync, publish } from '../../hooks/useTabSync'
 const COLORS: Record<string, string> = {
   default: 'var(--bg-surface)', amber: '#fef3c7', green: '#dcfce7', blue: '#dbeafe', rose: '#ffe4e6',
 }
-const PRIORITY: Record<string, { label: string; color: string }> = {
-  high: { label: 'Alta', color: '#ef4444' }, normal: { label: 'Normal', color: '#71717a' }, low: { label: 'Baja', color: '#a1a1aa' },
-}
+
+interface Note { id: string; content?: string; title?: string; color?: string }
+
+interface Task { id: string; title: string; done?: boolean }
 
 export default function NotesWorkspace() {
   const [tab, setTab] = useState<'notes' | 'tasks'>('notes')
-  const [notes, setNotes] = useState<any[]>([])
-  const [tasks, setTasks] = useState<any[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [newNote, setNewNote] = useState('')
   const [newTask, setNewTask] = useState('')
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [editNote, setEditNote] = useState<any>(null)
+  const [editNote, setEditNote] = useState<Note | null>(null)
   const [editContent, setEditContent] = useState('')
-  const [editTask, setEditTask] = useState<any>(null)
+  const [editTask, setEditTask] = useState<Task | null>(null)
   const [editTaskTitle, setEditTaskTitle] = useState('')
 
   const load = async () => {
@@ -29,7 +30,9 @@ export default function NotesWorkspace() {
       setNotes(n.data || []); setTasks(t.data || [])
     } catch {} finally { setLoading(false) }
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
   // Otra pestaña tocó notas o tareas: recargamos del servidor, que es quien manda.
   // Gana quien escribió último porque lo que recargamos es el estado ya guardado.
@@ -44,9 +47,9 @@ export default function NotesWorkspace() {
     setNotes(prev => [data, ...prev])
     publish({ type: 'notes' })
   }
-  const cycleColor = async (note: any) => {
+  const cycleColor = async (note: Note) => {
     const keys = Object.keys(COLORS)
-    const next = keys[(keys.indexOf(note.color) + 1) % keys.length]
+    const next = keys[(keys.indexOf(note.color || 'default') + 1) % keys.length]
     setNotes(prev => prev.map(n => n.id === note.id ? { ...n, color: next } : n))
     notesAPI.updateNote(note.id, { color: next }).then(() => publish({ type: 'notes' })).catch(() => {})
   }
@@ -54,7 +57,7 @@ export default function NotesWorkspace() {
     setNotes(prev => prev.filter(n => n.id !== id))
     notesAPI.deleteNote(id).then(() => publish({ type: 'notes' })).catch(() => {})
   }
-  const openEditNote = (note: any) => { setEditNote(note); setEditContent(note.content || note.title || '') }
+  const openEditNote = (note: Note) => { setEditNote(note); setEditContent(note.content || note.title || '') }
   const saveEditNote = async () => {
     if (!editNote) return
     const content = editContent.trim()
@@ -72,7 +75,7 @@ export default function NotesWorkspace() {
     setTasks(prev => [data, ...prev])
     publish({ type: 'tasks' })
   }
-  const toggleTask = async (task: any) => {
+  const toggleTask = async (task: Task) => {
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, done: !t.done } : t))
     notesAPI.updateTask(task.id, { done: !task.done }).then(() => publish({ type: 'tasks' })).catch(() => {})
   }
@@ -80,7 +83,7 @@ export default function NotesWorkspace() {
     setTasks(prev => prev.filter(t => t.id !== id))
     notesAPI.deleteTask(id).then(() => publish({ type: 'tasks' })).catch(() => {})
   }
-  const openEditTask = (task: any) => { setEditTask(task); setEditTaskTitle(task.title) }
+  const openEditTask = (task: Task) => { setEditTask(task); setEditTaskTitle(task.title) }
   const saveEditTask = async () => {
     if (!editTask) return
     const title = editTaskTitle.trim()
@@ -138,7 +141,7 @@ export default function NotesWorkspace() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
                 {filteredNotes.map(n => (
-                  <div key={n.id} style={{ position: 'relative', padding: '14px 14px 36px', borderRadius: 12, background: COLORS[n.color] || COLORS.default, border: '1px solid var(--border-default)', minHeight: 90, whiteSpace: 'pre-wrap', fontSize: '0.86rem', color: n.color === 'default' ? 'var(--text-primary)' : '#1c1c1f', lineHeight: 1.5, cursor: 'pointer' }}
+                  <div key={n.id} style={{ position: 'relative', padding: '14px 14px 36px', borderRadius: 12, background: COLORS[n.color || 'default'] || COLORS.default, border: '1px solid var(--border-default)', minHeight: 90, whiteSpace: 'pre-wrap', fontSize: '0.86rem', color: n.color === 'default' ? 'var(--text-primary)' : '#1c1c1f', lineHeight: 1.5, cursor: 'pointer' }}
                     onClick={() => openEditNote(n)}>
                     {n.content || n.title}
                     <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>

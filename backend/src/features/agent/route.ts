@@ -25,6 +25,7 @@ import { checkGlobalBudget } from '../../services/monitoring'
 import { cleanFallbackTitle, generateSmartTitle } from '../../controllers/chatController'
 import { MODELS } from '../../services/openrouter'
 import { runAgent, AgentStep } from './agent'
+import { runOrchestrator, OrchestratorStep } from './orchestrator'
 
 const router = Router()
 router.use(requireAuth)
@@ -109,9 +110,20 @@ router.post('/run', heavyLimiter, async (req: Request, res: Response) => {
     })
 
     // ── 3. El agente trabaja ──────────────────────────────────────────────
+    const mode = String(req.body?.mode || 'agent').toLowerCase()
     let result
     try {
-      result = await runAgent(userId, message, history)
+      if (mode === 'orchestrator') {
+        // New Plan-Execute-Evaluate state machine
+        const orchResult = await runOrchestrator(userId, message, history)
+        result = {
+          answer: orchResult.answer,
+          steps: orchResult.steps.map((s: OrchestratorStep) => ({ tool: s.tool, input: s.input, output: s.output })),
+        }
+      } else {
+        // Legacy flat-loop agent (default, backward compatible)
+        result = await runAgent(userId, message, history)
+      }
     } catch (e: any) {
       await devolverMensaje(userId)
       console.error('[agent] error:', e?.message || e)

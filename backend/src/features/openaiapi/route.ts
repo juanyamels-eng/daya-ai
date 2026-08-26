@@ -37,7 +37,7 @@ const router = Router()
 // queda en undefined y el usuario ve un fallo genérico justo cuando el problema
 // es concreto (token mal pegado o revocado). Aquí se traduce la respuesta del
 // middleware al formato de OpenAI sin duplicar la validación del token.
-function authOpenAI(req: Request, res: Response, next: Function) {
+function authOpenAI(req: Request, res: Response, next: () => void) {
   const jsonOriginal = res.json.bind(res)
   res.json = ((body: any) => {
     res.json = jsonOriginal
@@ -216,7 +216,7 @@ router.get('/models', (_req: Request, res: Response) => {
 
 // ── POST /v1/chat/completions ───────────────────────────────────────────────
 router.post('/chat/completions', chatBurstLimiter, async (req: Request, res: Response) => {
-  const userId = (req as any).userId as string
+  const userId = req.userId as string
   const body = req.body || {}
   const messages = Array.isArray(body.messages) ? body.messages : null
 
@@ -314,9 +314,9 @@ router.post('/chat/completions', chatBurstLimiter, async (req: Request, res: Res
     const inTok = usage?.prompt_tokens ?? Math.ceil(sizeOf(messages) / 4)
     const outTok = usage?.completion_tokens ?? Math.ceil(outputText.length / 4)
     await cobrarExtra(userId, mensajesQueCuesta(access.plan!, real, inTok, outTok) - 1)
-  } catch (e: any) {
+  } catch (e) {
     await refund(userId)
-    const msg = e?.message || 'El modelo no respondió.'
+    const msg = e instanceof Error ? e.message : 'El modelo no respondió.'
     console.error('[api/v1] error:', msg)
     if (res.headersSent) { try { res.end() } catch {} return }
     return fail(res, 502, `No se pudo completar la petición: ${msg}`, 'upstream_error')

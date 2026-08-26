@@ -2,6 +2,10 @@ import { prisma } from '../lib/prisma'
 import { chatSingle } from './openrouter'
 import { embedText, cosineSimilarity } from './embeddings'
 import { tokenize } from '../utils/nlp'
+import { getUserContext as getUserGraphContext } from '../features/memory/userGraph'
+import { getAdaptedPersonality } from '../features/memory/personality'
+import { getLearningContext } from '../features/memory/learning'
+import { getCrossFeatureContext } from '../features/memory/crossIntelligence'
 
 // Extrae recuerdos importantes de una conversación y los guarda CON embedding real.
 export async function extractMemories(
@@ -43,7 +47,7 @@ Responde SOLO con JSON, MÁXIMO 2 elementos, y array vacío [] si no hay nada qu
 
     // Evitar duplicados Y casi-duplicados (uno contiene al otro).
     const existing = await prisma.memory.findMany({ where: { userId }, select: { content: true } })
-    const existingList = existing.map((e: any) => e.content.toLowerCase().trim())
+    const existingList = existing.map(e => e.content.toLowerCase().trim())
 
     for (const m of memories) {
       const content = (m.content || '').trim()
@@ -65,10 +69,10 @@ Responde SOLO con JSON, MÁXIMO 2 elementos, y array vacío [] si no hay nada qu
       const oldest = await prisma.memory.findMany({
         where: { userId }, orderBy: { createdAt: 'asc' }, take: total - MAX_MEMORIES, select: { id: true },
       })
-      if (oldest.length) await prisma.memory.deleteMany({ where: { id: { in: oldest.map((o: any) => o.id) } } })
+      if (oldest.length) await prisma.memory.deleteMany({ where: { id: { in: oldest.map(o => o.id) } } })
     }
-  } catch (err: any) {
-    console.error('Error extracting memories:', err?.message || err)
+  } catch (err) {
+    console.error('Error extracting memories:', err instanceof Error ? err.message : err)
   }
 }
 
@@ -88,18 +92,27 @@ function keywordScore(queryTokens: string[], content: string): number {
   return hits / queryTokens.length
 }
 
+// Fila mínima que consume la puntuación híbrida (compatible con el modelo de Prisma)
+interface MemoryRow {
+  id: string
+  content: string
+  category: string
+  embedding?: unknown
+  createdAt: Date | string
+}
+
 // Puntúa y ordena los recuerdos combinando las tres señales.
-function scoreMemories(
-  memories: any[],
+function scoreMemories<T extends MemoryRow>(
+  memories: T[],
   queryVec: number[],
   queryTokens: string[]
-): { m: any; score: number; vec: number; kw: number }[] {
+): { m: T; score: number; vec: number; kw: number }[] {
   const now = Date.now()
   const DAY = 86_400_000
   return memories
     .map(m => {
       const vec = queryVec.length && Array.isArray(m.embedding) && m.embedding.length
-        ? Math.max(0, cosineSimilarity(queryVec, m.embedding))   // 0..1
+        ? Math.max(0, cosineSimilarity(queryVec, m.embedding as number[]))   // 0..1
         : 0
       const kw = keywordScore(queryTokens, m.content)            // 0..1
       // Recencia: 1.0 hoy → ~0.5 a los 30 días (decaimiento suave)
@@ -140,7 +153,7 @@ export async function getRelevantMemories(
 
   const memoryText = selected
     .slice(0, limit)
-    .map((m: any) => `- [${m.category}] ${m.content}`)
+    .map((m) => `- [${m.category}] ${m.content}`)
     .join('\n')
 
   if (!memoryText) return ''
@@ -150,7 +163,7 @@ export async function getRelevantMemories(
 // Bloque de contexto de usuario solo para el agente (sin el "You are DAYA" del chat).
 // Combina memorias relevantes + preferencias de perfil + fragmentos de documentos.
 export async function getUserContextForAgent(userId: string, query: string): Promise<string> {
-  const [memories, docContext, prof] = await Promise.all([
+  const [memories, docContext, graphContext, prof] = await Promise.all([
     getRelevantMemories(userId, query).catch(() => ''),
     (async () => {
       try {
@@ -158,7 +171,13 @@ export async function getUserContextForAgent(userId: string, query: string): Pro
         return await retrieveRelevant(userId, query)
       } catch { return '' }
     })(),
-    (prisma as any).userProfile.findUnique({
+    (async () => {
+      try {
+        const { getGraphContext } = await import('../features/graphrag/query')
+        return await getGraphContext(userId, query, 3)
+      } catch { return '' }
+    })(),
+    prisma.userProfile.findUnique({
       where: { userId },
       select: { tone: true, responseLength: true, profession: true, language: true },
     }).catch(() => null),
@@ -178,6 +197,7 @@ export async function getUserContextForAgent(userId: string, query: string): Pro
   if (parts.length) ctx += '\nPreferencias del usuario: ' + parts.join(' ')
   if (memories) ctx += memories
   if (docContext) ctx += docContext
+  if (graphContext) ctx += graphContext
   return ctx
 }
 
@@ -208,16 +228,22 @@ function spCacheSet(k: string, v: string) {
 export async function buildSystemPrompt(
   userId: string,
   currentMessage?: string,
-  aiPersona = 'DAYA'
+  _aiPersona = 'DAYA'
 ): Promise<string> {
   // Las partes dinámicas (memoria + RAG) y las estáticas (perfil + skills + lifecontext)
   // se resuelven en paralelo. Las estáticas usan cache de 45 s.
-  const [memories, docContext, staticRaw, approvedBlock] = await Promise.all([
+  const [memories, docContext, graphContext, staticRaw, approvedBlock, userGraphCtx, personalityCtx, learningCtx, crossCtx] = await Promise.all([
     getRelevantMemories(userId, currentMessage),
     (async () => {
       try {
         const { retrieveRelevant } = await import('../features/docrag/service')
         return await retrieveRelevant(userId, currentMessage || '')
+      } catch { return '' }
+    })(),
+    (async () => {
+      try {
+        const { getGraphContext } = await import('../features/graphrag/query')
+        return await getGraphContext(userId, currentMessage || '', 3)
       } catch { return '' }
     })(),
     (async () => {
@@ -239,6 +265,11 @@ export async function buildSystemPrompt(
     (async () => {
       try { const m = await import('./training'); return await m.getApprovedInstructionBlock() } catch { return '' }
     })(),
+    // ── New memory system: UserGraph, Personality, Learning, Cross-Feature ──
+    getUserGraphContext(userId).catch(() => ''),
+    getAdaptedPersonality(userId, currentMessage || '').then(p => p.instructions).catch(() => ''),
+    getLearningContext(userId).catch(() => ''),
+    getCrossFeatureContext(userId, currentMessage || '').catch(() => ''),
   ])
 
   const { lifeCtx: lifeContext, skillsCtx: skillsContext, prof: profile } = (() => {
@@ -307,6 +338,6 @@ Profundidad: por defecto desarrolla tus respuestas con sustancia — explica el 
 Formato: responde de forma natural y conversacional. En respuestas cortas y directas, usa texto limpio sin símbolos de markdown. Reserva el formato (## títulos, listas con guion, **negritas**) solo para respuestas largas o técnicas donde realmente aporte estructura y claridad. Nunca uses asteriscos, almohadillas ni guiones si el contenido no los necesita — el texto limpio es siempre preferible a forzar formato.
 
 Matemáticas y diagramas (cuando de verdad ayuden, no a la fuerza): para fórmulas o ecuaciones usa LaTeX en bloque entre $$ … $$ (se renderizan con formato bonito). Para procesos, flujos, arquitecturas, líneas de tiempo o relaciones, puedes dibujar un diagrama con un bloque \`\`\`mermaid (flowchart, sequenceDiagram, gantt, etc.). Para comparar cifras, tendencias o distribuciones, puedes dibujar un gráfico con un bloque \`\`\`chart y este JSON exacto: {"type":"bar|line|pie|doughnut","title":"opcional","labels":["A","B","C"],"datasets":[{"label":"Serie","data":[10,20,15]}]}. Úsalos solo cuando aporten claridad real; para números sueltos (precios, cantidades) escribe normal, sin LaTeX ni gráficos.
-${approvedBlock}${prefsText}${memories}${docContext}${lifeContext}${skillsContext}
+${approvedBlock}${prefsText}${memories}${docContext}${graphContext}${lifeContext}${skillsContext}${userGraphCtx}${personalityCtx}${learningCtx}${crossCtx}
 Adapta el idioma, el contexto y el tono a cada usuario. Recuerda lo que sabes de él y personaliza tus respuestas.`
 }

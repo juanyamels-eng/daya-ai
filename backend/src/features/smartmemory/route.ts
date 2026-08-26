@@ -15,10 +15,10 @@ router.post('/remember', async (req: Request, res: Response) => {
   const { userMessage, aiResponse } = req.body || {}
   if (!userMessage) return res.status(400).json({ error: 'Falta userMessage.' })
   try {
-    const result = await smartRemember((req as any).userId, String(userMessage), String(aiResponse || ''))
+    const result = await smartRemember(req.userId, String(userMessage), String(aiResponse || ''))
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La resolución falló.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'La resolución falló.' })
   }
 })
 
@@ -26,10 +26,10 @@ router.post('/resolve', async (req: Request, res: Response) => {
   const { facts } = req.body || {}
   if (!Array.isArray(facts)) return res.status(400).json({ error: 'Falta facts[].' })
   try {
-    const result = await resolveFacts((req as any).userId, facts)
+    const result = await resolveFacts(req.userId, facts)
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La resolución falló.' })
+  } catch (e) {
+    res.status(500).json({ error: e instanceof Error ? e.message : 'La resolución falló.' })
   }
 })
 

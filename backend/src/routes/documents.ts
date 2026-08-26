@@ -11,7 +11,7 @@ import { buildPPTX } from '../services/documents/pptxGenerator'
 import {
   analyzeFile, reorganizeDocument, summarizeDocument,
   transformDocument, saveToLibrary, getLibraryDocuments,
-  deleteLibraryDocument, generateDocumentContent
+  deleteLibraryDocument, generateDocumentContent, DocType
 } from '../services/documents/documentService'
 import { parseFile, isSupported } from '../services/documents/fileParser'
 import { prisma } from '../lib/prisma'
@@ -87,7 +87,7 @@ router.use(requireAuth)
 // Uploads a file (PDF/Word/Excel/CSV/TXT), READS it and processes it
 // ============================================
 router.post('/upload', upload.single('file'), async (req: Request, res: Response) => {
-  const file = (req as any).file
+  const file = req.file
   const action = req.body.action || 'analyze' // analyze | reorganize | summarize | transform
   const question = req.body.question || ''
 
@@ -106,7 +106,10 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
     }
 
     // 2️⃣ PROCESS according to the requested action
-    let result: any
+    let result: Awaited<ReturnType<typeof summarizeDocument>> |
+      Awaited<ReturnType<typeof reorganizeDocument>> |
+      Awaited<ReturnType<typeof transformDocument>> |
+      Awaited<ReturnType<typeof analyzeFile>>
 
     switch (action) {
       case 'summarize':
@@ -116,10 +119,10 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
         result = await reorganizeDocument(parsed.text, question || 'Mejora la estructura y claridad', 'pdf')
         break
       case 'transform':
-        result = await transformDocument(parsed.text, parsed.metadata.type as any, (req.body.targetFormat || 'pdf'))
+        result = await transformDocument(parsed.text, parsed.metadata.type as DocType, (req.body.targetFormat || 'pdf'))
         break
       default: // analyze
-        result = await analyzeFile({ userId: (req as any).userId, fileContent: parsed.text, fileName: file.originalname, fileType: parsed.metadata.type, question })
+        result = await analyzeFile({ userId: req.userId, fileContent: parsed.text, fileName: file.originalname, fileType: parsed.metadata.type, question })
     }
 
     res.json({
@@ -130,9 +133,10 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       result,
     })
 
-  } catch (error: any) {
-    console.error('❌ File upload/parse error:', error.message)
-    res.status(500).json({ error: error.message || 'Error procesando el archivo' })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : undefined
+    console.error('❌ File upload/parse error:', msg)
+    res.status(500).json({ error: msg || 'Error procesando el archivo' })
   }
 })
 
@@ -141,7 +145,7 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 // Only extracts text from a file (without AI processing)
 // ============================================
 router.post('/extract', upload.single('file'), async (req: Request, res: Response) => {
-  const file = (req as any).file
+  const file = req.file
   if (!file) return res.status(400).json({ error: 'No se recibió ningún archivo' })
 
   try {
@@ -152,8 +156,8 @@ router.post('/extract', upload.single('file'), async (req: Request, res: Respons
       text: parsed.text,
       metadata: parsed.metadata,
     })
-  } catch (error: any) {
-    res.status(500).json({ error: error.message })
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : String(error) })
   }
 })
 
@@ -163,7 +167,7 @@ router.post('/extract', upload.single('file'), async (req: Request, res: Respons
 // ============================================
 // (Previous pre-generation questions were removed: the document is generated directly.)
 router.post('/generate', heavyLimiter, async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { prompt, docType, language, template, answers } = req.body
 
   if (!prompt || !docType) {
@@ -175,7 +179,7 @@ router.post('/generate', heavyLimiter, async (req: Request, res: Response) => {
   const { consumeQuota } = await import('../services/quota')
   const dq = await consumeQuota(userId, 'document')
   if (!dq.ok) return res.status(429).json({ error: dq.error })
-  let quotaConsumed = true
+  const quotaConsumed = true
 
   try {
     let content: Buffer | string
@@ -304,14 +308,15 @@ router.post('/generate', heavyLimiter, async (req: Request, res: Response) => {
       downloadUrl: `/api/documents/download/${docId}`,
     })
 
-  } catch (error: any) {
-    console.error('❌ Document generation error:', error.message)
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : undefined
+    console.error('❌ Document generation error:', msg)
     // The quota was reserved but the document was not generated: refund it.
     if (quotaConsumed) {
       const { refundQuota } = await import('../services/quota')
       await refundQuota(userId, 'document').catch(() => {})
     }
-    res.status(500).json({ error: error.message || 'Error generando documento' })
+    res.status(500).json({ error: msg || 'Error generando documento' })
   }
 })
 
@@ -320,7 +325,7 @@ router.post('/generate', heavyLimiter, async (req: Request, res: Response) => {
 // Analyzes an uploaded file
 // ============================================
 router.post('/analyze', heavyLimiter, async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { fileContent, fileName, fileType, question } = req.body
 
   if (!fileContent || !fileName) {
@@ -330,8 +335,8 @@ router.post('/analyze', heavyLimiter, async (req: Request, res: Response) => {
   try {
     const analysis = await analyzeFile({ userId, fileContent, fileName, fileType, question })
     res.json({ success: true, analysis })
-  } catch (error: any) {
-    res.status(500).json({ error: 'Error analizando archivo', details: error.message })
+  } catch (error) {
+    res.status(500).json({ error: 'Error analizando archivo', details: error instanceof Error ? error.message : String(error) })
   }
 })
 
@@ -344,7 +349,7 @@ router.post('/reorganize', async (req: Request, res: Response) => {
   try {
     const result = await reorganizeDocument(content, instruction, docType || 'word')
     res.json({ success: true, ...result })
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Error reorganizando documento' })
   }
 })
@@ -358,7 +363,7 @@ router.post('/summarize', async (req: Request, res: Response) => {
   try {
     const result = await summarizeDocument(content, style, maxWords)
     res.json({ success: true, ...result })
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Error resumiendo documento' })
   }
 })
@@ -372,7 +377,7 @@ router.post('/transform', async (req: Request, res: Response) => {
   try {
     const result = await transformDocument(content, fromType, toType)
     res.json({ success: true, ...result })
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Error transformando documento' })
   }
 })
@@ -382,12 +387,12 @@ router.post('/transform', async (req: Request, res: Response) => {
 // Gets the user's library
 // ============================================
 router.get('/library', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   const { category } = req.query
   try {
     const docs = await getLibraryDocuments(userId, category as string)
     res.json(docs)
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Error obteniendo biblioteca' })
   }
 })
@@ -396,11 +401,11 @@ router.get('/library', async (req: Request, res: Response) => {
 // DELETE /api/documents/library/:id
 // ============================================
 router.delete('/library/:id', async (req: Request, res: Response) => {
-  const userId = (req as any).userId
+  const userId = req.userId
   try {
     await deleteLibraryDocument(userId, req.params.id)
     res.json({ success: true })
-  } catch (error: any) {
+  } catch {
     res.status(500).json({ error: 'Error eliminando documento' })
   }
 })

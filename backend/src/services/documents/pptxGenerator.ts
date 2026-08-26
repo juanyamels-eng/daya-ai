@@ -67,8 +67,8 @@ async function imageToDataUri(url?: string): Promise<string | null> {
 
 // Construye las viñetas "premium" como un array PLANO de runs (formato que espera
 // pptxgenjs). Si una viñeta trae "Idea clave: explicación", la idea va en negrita.
-function bulletRuns(bullets: string[], t: PTheme, size = 15): any[] {
-  const runs: any[] = []
+function bulletRuns(bullets: string[], t: PTheme, size = 15): PptxGenJS.TextProps[] {
+  const runs: PptxGenJS.TextProps[] = []
   for (const b of bullets) {
     const m = b.match(/^\s*([^:–—]{2,42})[:–—]\s+(.+)$/)
     if (m) {

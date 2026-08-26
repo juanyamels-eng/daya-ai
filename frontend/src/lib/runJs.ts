@@ -67,7 +67,7 @@ export function runJavaScript(code: string, timeoutMs = 6000): Promise<RunResult
       const blob = new Blob([WORKER_SRC], { type: 'application/javascript' })
       url = URL.createObjectURL(blob)
       worker = new Worker(url)
-    } catch (e: any) {
+    } catch {
       finish({ error: 'Tu navegador no permitió crear el entorno de ejecución.' })
       return
     }

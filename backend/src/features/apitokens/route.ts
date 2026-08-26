@@ -5,7 +5,7 @@
 //
 // NOTE: requires `npx prisma generate && npx prisma db push` (creates ApiToken).
 // ============================================
-import { Router, Request, Response } from 'express'
+import { Router, Request } from 'express'
 import crypto from 'crypto'
 import { requireAuth } from '../../middleware/auth'
 import { prisma } from '../../lib/prisma'

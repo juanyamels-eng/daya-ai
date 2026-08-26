@@ -4,20 +4,30 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../store'
 import { api, userAPI, chatAPI } from '../lib/api'
 import { memorySkillsAPI, whatsappAPI } from '../lib/toolsApi'
-import { useI18n, useT } from '../lib/i18n'
+import { useT } from '../lib/i18n'
 import { toast } from '../lib/toast'
 import PageTitle from './PageTitle'
 import PlansModal from './PlansModal'
 import ApiTokensManager from './ApiTokensManager'
+import ModelSelector from './models/ModelSelector'
 
 // Dirección del backend, la misma que usa el resto de la app. Se enseña en
 // Ajustes para configurar editores externos (API compatible con OpenAI).
 const API = process.env.NEXT_PUBLIC_API_URL || ''
 
+interface MemoryItem { id: string; content: string; category?: string }
+interface SkillItem { id: string; name: string; guidance: string; trigger?: string; enabled?: boolean }
+interface UsageStats {
+  totals?: { calls?: number; inputTokens?: number; outputTokens?: number; costUsd?: number }
+  byModel?: Record<string, { calls: number; inputTokens: number; outputTokens: number; costUsd?: number }>
+  byDay?: { date: string; calls?: number }[]
+}
+
 const SECTIONS = [
   { id: 'perfil', key: 'identity', icon: <UserIcon /> },
   { id: 'plan', key: 'subscription', icon: <PlanIcon /> },
   { id: 'daya', key: 'operatingConfig', icon: <SliderIcon /> },
+  { id: 'modelos', key: 'models', icon: <CpuIcon /> },
   { id: 'datos', key: 'security', icon: <DatabaseIcon /> },
   { id: 'uso', key: 'usageInsights', icon: <ChartIcon /> },
   { id: 'soporte', key: 'support', icon: <SupportIcon /> },
@@ -30,14 +40,14 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
   const router = useRouter()
   const { user, setUser, logout, theme, themePref, setThemePref } = useAuthStore()
   const [active, setActive] = useState('perfil')
-  const [memoryList, setMemoryList] = useState<any[]>([])
+  const [memoryList, setMemoryList] = useState<MemoryItem[]>([])
   const [memLoading, setMemLoading] = useState(false)
-  const [skillsList, setSkillsList] = useState<any[]>([])
+  const [skillsList, setSkillsList] = useState<SkillItem[]>([])
   const [skillsLoading, setSkillsLoading] = useState(false)
   const [waStatus, setWaStatus] = useState<{ configured: boolean; linked: boolean; phone: string | null; number: string } | null>(null)
   const [waCode, setWaCode] = useState<string | null>(null)
   const [waBusy, setWaBusy] = useState(false)
-  const [usageData, setUsageData] = useState<any>(null)
+  const [usageData, setUsageData] = useState<UsageStats | null>(null)
   const [usageLoading, setUsageLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -317,7 +327,7 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
               <button key={s.id} onClick={() => setActive(s.id)}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 9, border: 'none', cursor: 'pointer', textAlign: 'left', fontSize: '0.83rem', fontWeight: active === s.id ? 600 : 400, background: active === s.id ? 'var(--bg-elevated)' : 'transparent', color: active === s.id ? 'var(--text-primary)' : 'var(--text-secondary)', transition: 'all 0.15s', fontFamily: 'var(--font-body)', borderLeft: `2px solid ${active === s.id ? 'var(--border-strong)' : 'transparent'}` }}>
                 <span style={{ color: active === s.id ? 'var(--accent-400)' : 'var(--text-tertiary)', display: 'flex' }}>{s.icon}</span>
-                {t(s.key as any)}
+                {t(s.key)}
               </button>
             ))}
             <div style={{ height: 1, background: 'var(--border-default)', margin: '8px 0' }} />
@@ -414,11 +424,13 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
             <Section title="Preferencias de Daya" desc="Ajusta cómo te responde Daya: idioma, tono y longitud. Se aplica a tus próximas conversaciones.">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 <Field label={t('operatingLanguage')}>
-                  <select style={{ ...inputStyle, cursor: 'pointer' }} value={language} onChange={e => { setLanguage(e.target.value); if (e.target.value === 'es' || e.target.value === 'en') useI18n.getState().setLang(e.target.value as any) }}>
+                  <select style={{ ...inputStyle, cursor: 'pointer' }} value={language} onChange={e => { const lang = e.target.value; setLanguage(lang); document.cookie = `daya-locale=${lang}; path=/; max-age=${60 * 60 * 24 * 365}; samesite=lax`; window.location.reload() }}>
                     <option value="es">Español</option>
                     <option value="en">English</option>
                     <option value="pt">Português</option>
                     <option value="fr">Français</option>
+                    <option value="de">Deutsch</option>
+                    <option value="it">Italiano</option>
                   </select>
                 </Field>
 
@@ -483,6 +495,16 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
               </div>
             </Section>
           </>)}
+
+          {/* MODELOS LOCALES (Ollama) */}
+          {active === 'modelos' && (
+            <Section title="Modelos locales (Ollama)" desc="Gestiona modelos que corren en tu máquina. Daya los usa como alternativa privada, gratuita y sin conexión a la nube.">
+              <ModelSelector
+                currentModel={process.env.LOCAL_LLM_MODEL}
+                onSelect={(modelId) => toast(`${t('models.selected')} ${modelId}` || `Modelo ${modelId} seleccionado`, 'success')}
+              />
+            </Section>
+          )}
 
           {/* DATOS */}
           {active === 'datos' && (<>
@@ -561,7 +583,7 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {memoryList.map((m: any) => (
+                  {memoryList.map((m) => (
                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 12 }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.45 }}>{m.content}</div>
@@ -587,7 +609,7 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {skillsList.map((s: any) => {
+                  {skillsList.map((s) => {
                     const on = s.enabled !== false
                     return (
                     <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 12 }}>
@@ -622,7 +644,7 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
                 <div style={{ padding: '14px 16px', borderRadius: 12, background: '#0b0a12', border: '1px solid var(--border-default)', fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", fontSize: '0.8rem', lineHeight: 2, color: '#a8a3c4', overflowX: 'auto' }}>
                   <div><span style={{ color: '#34d399', fontWeight: 700 }}>$</span> curl -O {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/daya-code.mjs</div>
                   <div><span style={{ color: '#34d399', fontWeight: 700 }}>$</span> node daya-code.mjs login <span style={{ color: '#6e6e7a' }}># una sola vez: pega tu token y queda guardado</span></div>
-                  <div><span style={{ color: '#34d399', fontWeight: 700 }}>$</span> node daya-code.mjs <span style={{ color: '#b9adff' }}>"crea un endpoint /health y pruébalo"</span></div>
+                  <div><span style={{ color: '#34d399', fontWeight: 700 }}>$</span> node daya-code.mjs <span style={{ color: '#b9adff' }}>&quot;crea un endpoint /health y pruébalo&quot;</span></div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <a href="/daya-code.mjs" download
@@ -675,7 +697,7 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
                   <div style={{ marginBottom: 20 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--text-tertiary)', letterSpacing: '0.06em', marginBottom: 10 }}>POR MODELO</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {Object.entries<any>(usageData.byModel).map(([model, data]) => (
+                      {Object.entries(usageData.byModel).map(([model, data]) => (
                         <div key={model} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: '0.83rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{model}</div>
@@ -697,7 +719,7 @@ export default function SettingsContent({ asModal = false, onClose }: { asModal?
                         <div key={d.date} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                           <span style={{ width: 72, flexShrink: 0, color: 'var(--text-tertiary)' }}>{d.date}</span>
                           <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--bg-elevated)', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(100, ((d.calls || 0) / Math.max(...usageData.byDay.map((x: any) => x.calls || 0), 1)) * 100)}%`, height: '100%', background: 'var(--accent-500)', borderRadius: 3 }} />
+                            <div style={{ width: `${Math.min(100, ((d.calls || 0) / Math.max(...(usageData.byDay ?? []).map((x) => x.calls || 0), 1)) * 100)}%`, height: '100%', background: 'var(--accent-500)', borderRadius: 3 }} />
                           </div>
                           <span style={{ width: 24, textAlign: 'right', flexShrink: 0 }}>{d.calls}</span>
                         </div>
@@ -877,8 +899,8 @@ function SliderIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" f
 function DatabaseIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> }
 function SupportIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> }
 function InfoIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> }
+function CpuIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="15" x2="4" y2="15"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="15" x2="23" y2="15"/></svg> }
 function ChartIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg> }
-function PaletteIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg> }
 function LogoutIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg> }
 function ChevronLeftIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg> }
 function CheckIcon({ size = 12, color = 'currentColor' }: { size?: number; color?: string }) { return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg> }

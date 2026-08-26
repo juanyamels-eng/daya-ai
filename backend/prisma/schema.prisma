@@ -10,69 +10,71 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  name          String
-  passwordHash  String?
-  emailVerified Boolean   @default(false)
-  verifyToken   String?
-  verifyExpires DateTime?
-  avatarUrl     String?
-  plan          Plan      @default(FREE)
-  stripeCustomerId String? @unique
-  planActivatedAt DateTime?
-  planExpiresAt   DateTime?
-  lastChargeId    String?
-  messagesUsed  Int       @default(0)
-  messagesLimit Int       @default(20)
-  imagesUsed    Int       @default(0)
-  searchesUsed  Int       @default(0)
-  studioUsed    Int       @default(0)
-  documentsUsed Int       @default(0)
-  usageResetAt    DateTime?
-  resetToken    String?
-  resetExpires  DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  email            String    @unique
+  name             String
+  passwordHash     String?
+  emailVerified    Boolean   @default(false)
+  verifyToken      String?
+  verifyExpires    DateTime?
+  avatarUrl        String?
+  plan             Plan      @default(FREE)
+  stripeCustomerId String?   @unique
+  planActivatedAt  DateTime?
+  planExpiresAt    DateTime?
+  lastChargeId     String?
+  messagesUsed     Int       @default(0)
+  messagesLimit    Int       @default(20)
+  imagesUsed       Int       @default(0)
+  searchesUsed     Int       @default(0)
+  studioUsed       Int       @default(0)
+  documentsUsed    Int       @default(0)
+  videosUsed       Int       @default(0)
+  usageResetAt     DateTime?
+  resetToken       String?
+  resetExpires     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   conversations   Conversation[]
   memories        Memory[]
   profile         UserProfile?
   generatedImages GeneratedImage[]
+  generatedVideos GeneratedVideo[]
   designs         Design[]
   brandKit        BrandKit?
   whatsappLink    WhatsAppLink?
 }
 
 model UserProfile {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  profession  String?
-  interests   String[]
-  language    String   @default("es")
-  aiPersona   String   @default("daya") // nombre de la IA personal asignada
-  tone        String?  // estilo de respuesta: formal, neutral, casual
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profession     String?
+  interests      String[]
+  language       String   @default("es")
+  aiPersona      String   @default("daya") // nombre de la IA personal asignada
+  tone           String? // estilo de respuesta: formal, neutral, casual
   responseLength String? // brief, balanced, detailed
-  avatarUrl   String?
-  updatedAt   DateTime @updatedAt
+  avatarUrl      String?
+  updatedAt      DateTime @updatedAt
 }
 
 model Conversation {
-  id        String    @id @default(uuid())
+  id        String              @id @default(uuid())
   userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title     String    @default("Nueva conversación")
-  model     String    @default("claude-3-5-sonnet")
-  mode      ChatMode  @default(SINGLE)
-  pinned    Boolean   @default(false)
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String              @default("Nueva conversación")
+  model     String              @default("claude-3-5-sonnet")
+  mode      ChatMode            @default(SINGLE)
+  pinned    Boolean             @default(false)
   messages  Message[]
   shared    SharedConversation?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 
-  @@index([userId, updatedAt(sort: Desc)])  // lista de chats por usuario, más reciente primero
-  @@index([userId, pinned])                 // filtro de conversaciones fijadas
+  @@index([userId, updatedAt(sort: Desc)]) // lista de chats por usuario, más reciente primero
+  @@index([userId, pinned]) // filtro de conversaciones fijadas
 }
 
 // Conversación publicada por enlace: cualquiera con el slug la LEE, sin cuenta y
@@ -100,17 +102,20 @@ model Message {
   tokens         Int?
   createdAt      DateTime     @default(now())
 
-  @@index([conversationId, createdAt])  // historial de mensajes por conversación (la query más frecuente)
+  @@index([conversationId, createdAt]) // historial de mensajes por conversación (la query más frecuente)
 }
 
 model Memory {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  content   String   // el hecho recordado
+  content   String // el hecho recordado
   category  String   @default("general") // trabajo, personal, preferencias
-  embedding Float[]  // vector para búsqueda semántica
+  embedding Float[] // vector para búsqueda semántica (pgvector en producción)
   createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([category])
 }
 
 enum Plan {
@@ -121,9 +126,9 @@ enum Plan {
 }
 
 enum ChatMode {
-  SINGLE    // un modelo
-  COUNCIL   // múltiples IAs debaten
-  BATTLE    // dos IAs compiten
+  SINGLE // un modelo
+  COUNCIL // múltiples IAs debaten
+  BATTLE // dos IAs compiten
 }
 
 enum Role {
@@ -139,9 +144,9 @@ model WhatsAppLink {
   id          String    @id @default(uuid())
   userId      String    @unique
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phone       String?   @unique   // E.164 sin '+', null hasta verificar
+  phone       String?   @unique // E.164 sin '+', null hasta verificar
   verified    Boolean   @default(false)
-  code        String?   @unique   // código de vinculación (p. ej. "DAYA-4F9K")
+  code        String?   @unique // código de vinculación (p. ej. "DAYA-4F9K")
   codeExpires DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -154,23 +159,30 @@ model WhatsAppLink {
 // ============================================
 
 model TrainingData {
-  id           String   @id @default(uuid())
-  userId       String
-  userMessage  String
-  aiResponse   String
-  category     String   @default("general")
-  quality      Float    @default(0.5)
-  userFeedback Int?     // 1 = positivo, -1 = negativo
-  source       String   @default("chat")
-  usedInTraining Boolean @default(false)
-  createdAt    DateTime @default(now())
+  id             String   @id @default(uuid())
+  userId         String
+  userMessage    String
+  aiResponse     String
+  category       String   @default("general")
+  quality        Float    @default(0.5)
+  userFeedback   Int? // 1 = positivo, -1 = negativo
+  source         String   @default("chat")
+  usedInTraining Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([category])
+  @@index([usedInTraining])
 }
 
 model DayaInsight {
-  id        String   @id @default(uuid())
-  type      String   // top_category, instruction_update, daily_stats, internet_knowledge
-  data      String   // JSON con los datos del insight
-  date      DateTime @default(now())
+  id   String   @id @default(uuid())
+  type String // top_category, instruction_update, daily_stats, internet_knowledge
+  data String // JSON con los datos del insight
+  date DateTime @default(now())
+
+  @@index([type])
+  @@index([date])
 }
 
 model DayaSystemConfig {
@@ -190,6 +202,9 @@ model LibraryDocument {
   category  String   @default("docs")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([category])
 }
 
 // ============================================
@@ -211,10 +226,10 @@ model NotebookSource {
   id         String   @id @default(uuid())
   notebookId String
   userId     String
-  type       String   // document (Biblioteca) | url | text
+  type       String // document (Biblioteca) | url | text
   title      String
-  content    String   @default("")  // texto extraído (url/text); vacío para document
-  docId      String?  // LibraryDocument de origen (type=document)
+  content    String   @default("") // texto extraído (url/text); vacío para document
+  docId      String? // LibraryDocument de origen (type=document)
   createdAt  DateTime @default(now())
 
   @@index([notebookId])
@@ -256,16 +271,16 @@ model Task {
 // Eventos guardados en la propia base de datos. Exportable a .ics estándar.
 // ============================================
 model CalendarEvent {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
   title     String
-  notes     String   @default("")
+  notes     String    @default("")
   start     DateTime
   end       DateTime?
-  allDay    Boolean  @default(false)
-  color     String   @default("default")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  allDay    Boolean   @default(false)
+  color     String    @default("default")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([userId])
 }
@@ -284,10 +299,426 @@ model EmailAccount {
   smtpPort    Int      @default(587)
   smtpSecure  Boolean  @default(false)
   username    String
-  passwordEnc String   // contraseña cifrada (nunca en claro)
+  passwordEnc String // contraseña cifrada (nunca en claro)
   fromName    String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ============================================
+// MULTI-TENANT WORKSPACES (feature: workspaces)
+// Organizaciones, equipos y RBAC para uso enterprise.
+// ============================================
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  logoUrl   String?
+  plan      Plan     @default(FREE)
+  ownerId   String // usuario que creó la org
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members  Membership[]
+  teams    Team[]
+  projects WorkspaceProject[]
+  settings OrgSettings?
+
+  @@index([slug])
+}
+
+model OrgSettings {
+  id              String       @id @default(uuid())
+  orgId           String       @unique
+  org             Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  defaultModel    String       @default("claude-3-5-sonnet")
+  maxMembers      Int          @default(10)
+  ssoEnabled      Boolean      @default(false)
+  ssoProvider     String? // okta, azure, google
+  ssoConfig       String? // JSON config for SSO provider
+  auditLogEnabled Boolean      @default(true)
+  updatedAt       DateTime     @updatedAt
+}
+
+// ============================================
+// MEETING ASSISTANT (feature: meeting-assistant)
+// Real-time meeting notes, transcription, and action items
+// ============================================
+model Meeting {
+  id           String   @id @default(uuid())
+  userId       String
+  title        String
+  platform     String   @default("manual") // zoom, teams, google-meet, manual
+  status       String   @default("active") // active, completed, archived
+  participants String[] // list of participant names/emails
+  summary      String? // AI-generated summary
+  decisions    String? // decisions made in the meeting
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  transcripts MeetingTranscript[]
+  actionItems MeetingActionItem[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model MeetingTranscript {
+  id         String   @id @default(uuid())
+  meetingId  String
+  meeting    Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  speaker    String
+  text       String
+  timestamp  Int // seconds from start
+  confidence Float    @default(1)
+  createdAt  DateTime @default(now())
+
+  @@index([meetingId, timestamp])
+}
+
+model MeetingActionItem {
+  id        String   @id @default(uuid())
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  title     String
+  status    String   @default("pending") // pending, in_progress, completed
+  assignee  String?
+  createdAt DateTime @default(now())
+
+  @@index([meetingId])
+}
+
+// ============================================
+// SLACK BOT INTEGRATION (feature: slack-bot)
+// DAYA responds in Slack channels
+// ============================================
+model SlackIntegration {
+  id          String   @id @default(uuid())
+  userId      String
+  teamId      String // Slack workspace ID
+  teamName    String // Slack workspace name
+  botToken    String // Bot OAuth token
+  channelId   String? // specific channel (null = all channels)
+  channelName String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teamId])
+  @@index([userId])
+}
+
+// SSO Tokens for login flow
+model SsoToken {
+  id        String   @id @default(uuid())
+  userId    String
+  orgId     String
+  token     String   @unique
+  used      Boolean  @default(false)
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expires])
+}
+
+// Audit log for compliance
+model AuditLog {
+  id         String   @id @default(uuid())
+  orgId      String?
+  userId     String
+  action     String // login, logout, create, update, delete, export, etc.
+  resource   String // what was acted upon
+  resourceId String?
+  details    Json? // additional context
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// Analytics data for BI dashboard
+model AnalyticsEvent {
+  id        String   @id @default(uuid())
+  eventType String // page_view, feature_use, api_call, etc.
+  userId    String?
+  orgId     String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([eventType, createdAt])
+  @@index([orgId, createdAt])
+  @@index([userId])
+}
+
+model DailyMetric {
+  id           String   @id @default(uuid())
+  date         DateTime @unique
+  totalUsers   Int      @default(0)
+  activeUsers  Int      @default(0)
+  newSignups   Int      @default(0)
+  messagesSent Int      @default(0)
+  revenue      Float    @default(0)
+  churnRate    Float    @default(0)
+  createdAt    DateTime @default(now())
+}
+
+// ============================================
+// AI AGENT BUILDER (feature: agent-builder)
+// No-code builder for custom AI agents
+// ============================================
+model AiAgent {
+  id           String   @id @default(uuid())
+  userId       String
+  name         String
+  description  String   @default("")
+  systemPrompt String
+  model        String   @default("claude-3-5-sonnet")
+  tools        String[] // tool IDs the agent can use
+  knowledge    String[] // knowledge base URLs or text
+  settings     Json? // temperature, maxTokens, etc.
+  isPublished  Boolean  @default(false) // shared to marketplace
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Team {
+  id        String       @id @default(uuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime     @default(now())
+
+  members  TeamMember[]
+  projects TeamProject[]
+
+  @@index([orgId])
+}
+
+model Membership {
+  id       String       @id @default(uuid())
+  orgId    String
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId   String
+  role     OrgRole      @default(MEMBER)
+  joinedAt DateTime     @default(now())
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model TeamMember {
+  id     String   @id @default(uuid())
+  teamId String
+  team   Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId String
+  role   TeamRole @default(MEMBER)
+
+  @@unique([teamId, userId])
+}
+
+model WorkspaceProject {
+  id          String        @id @default(uuid())
+  orgId       String
+  org         Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name        String
+  description String        @default("")
+  status      ProjectStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  teams TeamProject[]
+  tasks WorkspaceTask[]
+
+  @@index([orgId])
+}
+
+model TeamProject {
+  id        String           @id @default(uuid())
+  teamId    String
+  team      Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  projectId String
+  project   WorkspaceProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, projectId])
+}
+
+model WorkspaceTask {
+  id          String           @id @default(uuid())
+  projectId   String
+  project     WorkspaceProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String           @default("")
+  status      TaskStatus       @default(TODO)
+  priority    String           @default("normal")
+  assigneeId  String?
+  dueDate     DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([projectId])
+  @@index([status])
+  @@index([assigneeId])
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum TeamRole {
+  LEAD
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+  BLOCKED
+}
+
+// ============================================
+// API MARKETPLACE (feature: marketplace)
+// Monetización de tools/plugins — usuarios publican y venden herramientas.
+// ============================================
+model MarketplaceItem {
+  id           String     @id @default(uuid())
+  sellerId     String // userId del vendedor
+  name         String
+  slug         String     @unique
+  description  String
+  longDesc     String     @default("") // markdown extendido
+  category     String     @default("general") // automation, data, ai, dev, productivity
+  type         ItemType   @default(TOOL) // TOOL, PLUGIN, TEMPLATE, FLOW
+  priceCents   Int        @default(0) // 0 = gratuito
+  currency     String     @default("USD")
+  version      String     @default("1.0.0")
+  status       ItemStatus @default(DRAFT)
+  rating       Float      @default(0)
+  ratingCount  Int        @default(0)
+  installCount Int        @default(0)
+  icon         String? // emoji o URL
+  tags         String[]
+  config       Json? // configuración del tool/plugin
+  code         String? // código fuente (para plugins ejecutables)
+  homepage     String?
+  repository   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  reviews      MarketplaceReview[]
+  purchases    MarketplacePurchase[]
+  dependencies MarketplaceDependency[]
+
+  @@index([sellerId])
+  @@index([category, status])
+  @@index([status, rating(sort: Desc)])
+}
+
+model MarketplaceReview {
+  id        String          @id @default(uuid())
+  itemId    String
+  item      MarketplaceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId    String
+  rating    Int // 1-5
+  title     String          @default("")
+  content   String          @default("")
+  createdAt DateTime        @default(now())
+
+  @@unique([itemId, userId])
+  @@index([itemId])
+}
+
+model MarketplacePurchase {
+  id              String          @id @default(uuid())
+  itemId          String
+  item            MarketplaceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId          String
+  amountCents     Int
+  currency        String          @default("USD")
+  stripePaymentId String?
+  status          PurchaseStatus  @default(COMPLETED)
+  createdAt       DateTime        @default(now())
+
+  @@unique([itemId, userId])
+  @@index([userId])
+}
+
+model MarketplaceDependency {
+  id      String          @id @default(uuid())
+  itemId  String
+  item    MarketplaceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  depSlug String // slug del item del que depende
+  version String          @default("*") // semver range
+
+  @@index([itemId])
+}
+
+enum ItemType {
+  TOOL
+  PLUGIN
+  TEMPLATE
+  FLOW
+  AGENT
+}
+
+enum ItemStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  FAILED
+}
+
+// ============================================
+// REAL-TIME COLLABORATION (feature: collaboration)
+// Edición en tiempoWebSocket connections for real-time sync.
+// ============================================
+model CollaborationSession {
+  id           String   @id @default(uuid())
+  documentType String // design, notebook, note, workflow
+  documentId   String
+  ownerId      String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  participants CollaborationParticipant[]
+
+  @@unique([documentType, documentId])
+}
+
+model CollaborationParticipant {
+  id        String               @id @default(uuid())
+  sessionId String
+  session   CollaborationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  cursor    Json? // { line, ch } posición del cursor
+  color     String // color del cursor para distinguir usuarios
+  joinedAt  DateTime             @default(now())
+
+  @@unique([sessionId, userId])
 }
 
 // ============================================
@@ -298,10 +729,10 @@ model EmailAccount {
 model DocChunk {
   id        String   @id @default(uuid())
   userId    String
-  docId     String   // referencia al LibraryDocument de origen
-  source    String   // nombre del archivo
+  docId     String // referencia al LibraryDocument de origen
+  source    String // nombre del archivo
   text      String
-  embedding Float[]
+  embedding Float[] // pgvector en producción
   createdAt DateTime @default(now())
 
   @@index([userId])
@@ -315,7 +746,7 @@ model ApiToken {
   id         String    @id @default(uuid())
   userId     String
   name       String    @default("")
-  prefix     String    // primeros caracteres, para identificarlo en la lista
+  prefix     String // primeros caracteres, para identificarlo en la lista
   tokenHash  String    @unique
   lastUsedAt DateTime?
   createdAt  DateTime  @default(now())
@@ -342,14 +773,33 @@ model PromptPreset {
 // Guarda las imágenes generadas con IA para persistirlas en el chat y la Biblioteca.
 // ============================================
 model GeneratedImage {
-  id             String   @id @default(uuid())
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  prompt         String
-  model          String   @default("flux")
-  url            String
-  messageId      String?  // ID del mensaje en el chat (para restaurar en la vista)
-  createdAt      DateTime @default(now())
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt    String
+  model     String   @default("flux")
+  url       String
+  messageId String? // ID del mensaje en el chat (para restaurar en la vista)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model GeneratedVideo {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt       String
+  model        String   @default("kling-turbo")
+  url          String
+  thumbnailUrl String?
+  duration     Int      @default(5)
+  resolution   String   @default("720p")
+  aspectRatio  String   @default("16:9")
+  hasAudio     Boolean  @default(false)
+  status       String   @default("pending") // pending, processing, completed, failed
+  messageId    String?
+  createdAt    DateTime @default(now())
 
   @@index([userId])
 }
@@ -362,7 +812,7 @@ model BrandKit {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   colors    String[] // hex de marca
   fonts     String[] // familias tipográficas
-  logoUrl   String?  // logo (dataURL o URL)
+  logoUrl   String? // logo (dataURL o URL)
   updatedAt DateTime @updatedAt
 }
 
@@ -370,22 +820,23 @@ model BrandKit {
 // serializable { canvasW, canvasH, pages[] }. `thumbnail` es un PNG pequeño en
 // dataURL para la galería "Mis diseños". Patrón espejo de GeneratedImage.
 model Design {
-  id         String   @id @default(uuid())
+  id         String          @id @default(uuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   versions   DesignVersion[]
   comments   DesignComment[]
-  title      String   @default("Diseño sin título")
-  data       Json     // { canvasW, canvasH, pages: [{ id, name, elements, bg, bgGrad, bgPattern }] }
-  thumbnail  String?  // dataURL PNG reducido para la galería
-  w          Int      @default(1200)
-  h          Int      @default(800)
-  isTemplate Boolean  @default(false) // guardado como plantilla propia reutilizable (C)
-  shareToken String?  @unique         // si está, el diseño es visible por enlace público (solo lectura)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  title      String          @default("Diseño sin título")
+  data       Json // { canvasW, canvasH, pages: [{ id, name, elements, bg, bgGrad, bgPattern }] }
+  thumbnail  String? // dataURL PNG reducido para la galería
+  w          Int             @default(1200)
+  h          Int             @default(800)
+  isTemplate Boolean         @default(false) // guardado como plantilla propia reutilizable (C)
+  shareToken String?         @unique // si está, el diseño es visible por enlace público (solo lectura)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 
   @@index([userId])
+  @@index([isTemplate])
 }
 
 // Comentario de feedback sobre un diseño. Lo puede dejar el dueño (autenticado)
@@ -398,7 +849,7 @@ model DesignComment {
   author    String   @default("Invitado")
   body      String
   resolved  Boolean  @default(false)
-  isOwner   Boolean  @default(false)  // lo dejó el dueño desde el editor
+  isOwner   Boolean  @default(false) // lo dejó el dueño desde el editor
   createdAt DateTime @default(now())
 
   @@index([designId, createdAt])
@@ -417,4 +868,3 @@ model DesignVersion {
 
   @@index([designId, createdAt])
 }
-

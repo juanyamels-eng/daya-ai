@@ -1,9 +1,10 @@
 import { nightlyLearningProcess } from './training'
 import { refreshModelCatalog, applyStoredOverrides } from './modelCatalog'
+import { logger } from './logger'
 
 // Scheduler simple sin dependencias externas
 export function startScheduler(): void {
-  console.log('⏰ Scheduler de DAYA iniciado')
+  logger.info('⏰ Scheduler de DAYA iniciado')
 
   // Reaplica los cambios de modelo que ya se habían decidido: tras un despliegue
   // el código vuelve a los IDs escritos a mano, que pueden llevar días muertos.
@@ -59,8 +60,8 @@ export function startScheduler(): void {
       const { prisma } = await import('../lib/prisma')
       const { PLANS } = await import('../config/plans')
       await prisma.user.updateMany({
-        where: { plan: { in: ['PRO'] as any }, planExpiresAt: { lt: new Date() } },
-        data: { plan: 'FREE' as any, messagesLimit: PLANS.FREE.messageLimit },
+        where: { plan: { in: ['PRO'] }, planExpiresAt: { lt: new Date() } },
+        data: { plan: 'FREE', messagesLimit: PLANS.FREE.messageLimit },
       }).catch(() => {})
     }
 
@@ -69,6 +70,11 @@ export function startScheduler(): void {
     await runWorkerTick().catch(() => {})
     const { runDueAutomations } = await import('../features/automations/engine')
     await runDueAutomations().catch(() => {})
+
+    // Auto-mejora: opcional, solo si SELFIMPROVE_ENABLED=1 + DAYA_REPO_PATH
+    // (se auto-espacia con SELFIMPROVE_INTERVAL_H horas; por defecto cada 6h)
+    const { maybeRunScheduledImprovement } = await import('../features/selfimprove/agent')
+    await maybeRunScheduledImprovement().catch(() => {})
 
   }, 60 * 1000) // cada minuto
 }

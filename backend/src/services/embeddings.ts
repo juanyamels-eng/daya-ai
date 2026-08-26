@@ -61,7 +61,7 @@ export async function embedText(text: string): Promise<number[]> {
       input: text.slice(0, 8000),
     })
     return res.data[0]?.embedding || []
-  } catch (err: any) {
+  } catch (err) {
     // Si OpenAI falló (por ejemplo, sin crédito), intenta con OpenRouter como fallback.
     if (getOpenAI() && getOpenRouter()) {
       try {
@@ -72,7 +72,7 @@ export async function embedText(text: string): Promise<number[]> {
         return res.data[0]?.embedding || []
       } catch { return [] }
     }
-    console.warn('embedText falló:', err?.message)
+    console.warn('embedText falló:', err instanceof Error ? err.message : err)
     return []
   }
 }

@@ -31,11 +31,11 @@
 
 import { prisma } from '../../lib/prisma'
 import { chatJSON } from '../../services/openrouter'
-import { embedText, cosineSimilarity } from '../../services/embeddings'
+import { embedText } from '../../services/embeddings'
 import { jaccard } from '../../utils/nlp'
 import { loadConfig, saveConfig } from '../../services/configStore'
 
-const db = prisma as any
+const db = prisma
 
 // ── Utilidades de texto ─────────────────────────────────────────────────────
 
@@ -169,7 +169,7 @@ export async function learnSkillFromExchange(
       SKILL_SYS,
       undefined // usa modelo por defecto; el caller puede ajustar si quiere uno barato
     )
-    const s = parsed?.skill
+    const s = parsed?.skill as { name?: unknown; trigger?: unknown; guidance?: unknown } | undefined
     if (!s || typeof s !== 'object' || !s.name || !s.guidance) return null
 
     const skills = await loadSkills(userId)

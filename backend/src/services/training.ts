@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma'
 import { chatSingle } from './openrouter'
+import { logger } from './logger'
 
 // ============================================
 // DAYA IA - Secret Self-Improvement System
@@ -43,7 +44,7 @@ export async function detectCategory(message: string): Promise<string> {
 
 // Main nightly process — runs at 3am
 export async function nightlyLearningProcess(): Promise<void> {
-  console.log('🌙 [DAYA SECRET] Iniciando proceso nocturno de aprendizaje...')
+  logger.info('🌙 [DAYA SECRET] Iniciando proceso nocturno de aprendizaje...')
 
   try {
     await Promise.all([
@@ -54,7 +55,7 @@ export async function nightlyLearningProcess(): Promise<void> {
       generateDailyInsights(),
       fetchInternetKnowledge(),
     ])
-    console.log('✅ [DAYA SECRET] Proceso nocturno completado')
+    logger.info('✅ [DAYA SECRET] Proceso nocturno completado')
   } catch (err) {
     console.error('❌ [DAYA SECRET] Error en proceso nocturno:', err)
   }
@@ -71,7 +72,7 @@ async function analyzePatterns(): Promise<void> {
   })
 
   const categories: Record<string, number> = {}
-  recentData.forEach((d: any) => {
+  recentData.forEach((d) => {
     categories[d.category] = (categories[d.category] || 0) + 1
   })
 
@@ -86,7 +87,7 @@ async function analyzePatterns(): Promise<void> {
     })
   }
 
-  console.log('📊 [DAYA SECRET] Patrones analizados:', categories)
+  logger.info({ categories }, '📊 [DAYA SECRET] Patrones analizados')
 }
 
 // Proposes improvements to DAYA's instructions based on what was learned.
@@ -103,7 +104,7 @@ async function updateSystemInstructions(): Promise<void> {
 
   if (insights.length === 0) return
 
-  const summary = insights.map((i: any) => `${i.type}: ${i.data}`).join('\n')
+  const summary = insights.map((i) => `${i.type}: ${i.data}`).join('\n')
 
   const newInstructions = await chatSingle([{
     role: 'user',
@@ -126,7 +127,7 @@ Responde SOLO con las mejoras en formato JSON:
         date: new Date(),
       }
     })
-    console.log('[DAYA SECRET] Propuesta de instrucciones creada (pendiente de aprobación):', parsed.improvements)
+    logger.info('[DAYA SECRET] Propuesta de instrucciones creada (pendiente de aprobación):', parsed.improvements)
   } catch { /* continuar */ }
 }
 
@@ -197,7 +198,7 @@ async function scoreTrainingData(): Promise<void> {
     })
   }
 
-  console.log(`⭐ [DAYA SECRET] ${unscored.length} datos puntuados`)
+  logger.info(`⭐ [DAYA SECRET] ${unscored.length} datos puntuados`)
 }
 
 // Removes low quality data to avoid contaminating training
@@ -208,7 +209,7 @@ async function cleanLowQualityData(): Promise<void> {
       createdAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
     }
   })
-  console.log(`🗑️ [DAYA SECRET] ${deleted.count} datos de baja calidad eliminados`)
+  logger.info(`🗑️ [DAYA SECRET] ${deleted.count} datos de baja calidad eliminados`)
 }
 
 // Generates daily system insights
@@ -225,7 +226,7 @@ async function generateDailyInsights(): Promise<void> {
     }
   })
 
-  console.log(`📈 [DAYA SECRET] Stats: ${totalData} datos totales, ${highQuality} alta calidad, ${totalUsers} usuarios`)
+  logger.info(`📈 [DAYA SECRET] Stats: ${totalData} datos totales, ${highQuality} alta calidad, ${totalUsers} usuarios`)
 }
 
 // Fetches internet knowledge to enrich training
@@ -254,7 +255,7 @@ async function fetchInternetKnowledge(): Promise<void> {
       } catch { /* continue with next topic */ }
   }
 
-  console.log('🌐 [DAYA SECRET] Conocimiento de internet actualizado')
+  logger.info('🌐 [DAYA SECRET] Conocimiento de internet actualizado')
 }
 
 // Records user feedback (👍 = 1, 👎 = -1)

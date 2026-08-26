@@ -24,7 +24,7 @@
 import { prisma } from '../../lib/prisma'
 import { loadConfigObj, saveConfigObj } from '../../services/configStore'
 
-const db = prisma as any
+const db = prisma
 
 // ── Tipos ─────────────────────────────────────────────────────────────────
 
@@ -98,12 +98,14 @@ async function fetchWeather(loc?: UserLocation): Promise<WeatherSnapshot | undef
       `&current=temperature_2m,is_day,weather_code`
     const res = await fetch(url)
     if (!res.ok) return undefined
-    const data: any = await res.json()
+    const data = (await res.json()) as {
+      current?: { temperature_2m?: number; weather_code?: number; is_day?: number }
+    }
     const cur = data?.current
     if (!cur) return undefined
     return {
       tempC: typeof cur.temperature_2m === 'number' ? Math.round(cur.temperature_2m) : undefined,
-      description: weatherCodeToText(cur.weather_code),
+      description: typeof cur.weather_code === 'number' ? weatherCodeToText(cur.weather_code) : 'tiempo',
       isDay: cur.is_day === 1,
       fetchedAt: Date.now(),
     }
@@ -136,8 +138,8 @@ async function detectActiveProjects(userId: string): Promise<ActiveProject[]> {
       select: { title: true, updatedAt: true },
     })
     return convs
-      .filter((c: any) => c.title && c.title !== 'Nueva conversación')
-      .map((c: any) => ({
+      .filter(c => c.title && c.title !== 'Nueva conversación')
+      .map(c => ({
         title: c.title,
         lastTouched: new Date(c.updatedAt).getTime(),
       }))

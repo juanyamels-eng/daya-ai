@@ -92,7 +92,7 @@ export const MODELS = {
 // todos los alias apuntan a ese modelo local (p.ej. 'qwen2.5-coder:7b' de Ollama).
 // Inerte en producción (siempre hay key de OpenRouter → no se toca nada).
 if (!process.env.OPENROUTER_API_KEY && process.env.LOCAL_LLM_MODEL) {
-  for (const k of Object.keys(MODELS)) (MODELS as any)[k] = process.env.LOCAL_LLM_MODEL
+  for (const k of Object.keys(MODELS)) (MODELS as Record<string, string>)[k] = process.env.LOCAL_LLM_MODEL
 }
 // Auto-sanado: el refresco diario del catálogo MANTIENE esta tabla al día — si
 // un id desaparece de OpenRouter lo sustituye por el equivalente vivo, y si sale
@@ -249,7 +249,14 @@ const COT_INSTRUCTION = '\n\n[MODO PENSAMIENTO PROFUNDO] Antes de responder, raz
 //  - cot:       true si hay que inyectar la instrucción CoT + filtrar <think>
 //  - extraTokens: presupuesto extra de tokens (para que el razonamiento no se
 //                 coma la respuesta visible).
-function planThinking(modelId: string, level: ThinkLevel): { reasoning?: any; cot: boolean; extraTokens: number } {
+// Parámetro `reasoning` de OpenRouter (no estándar de OpenAI)
+interface ReasoningConfig {
+  effort?: 'high' | 'low'
+  max_tokens?: number
+  exclude?: boolean
+}
+
+function planThinking(modelId: string, level: ThinkLevel): { reasoning?: ReasoningConfig; cot: boolean; extraTokens: number } {
   if (level === 'normal') return { cot: false, extraTokens: 0 }   // ← sin cambios
   // Primero el catálogo vivo, que se actualiza solo con los modelos; la tabla de
   // arriba solo cubre el rato en que el catálogo aún no está.
@@ -272,7 +279,7 @@ export type StreamPart = string | { __reasoning: string }
 
 // Filtra bloques <think>...</think> del stream en tiempo real (versión string→string,
 // usada por chatChainStream, aiEditor y studio: el razonamiento se descarta).
-async function* filterThinking(raw: AsyncIterable<string>): AsyncGenerator<string> {
+async function* _filterThinking(raw: AsyncIterable<string>): AsyncGenerator<string> {
   const OPEN = '<think>'
   const CLOSE = '</think>'
   let inThink = false
@@ -357,11 +364,40 @@ export type ModelKey = keyof typeof MODELS
 export type ModelId  = string
 
 export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'system' | 'tool'
   content: string
+  tool_calls?: any[]
+  tool_call_id?: string
+}
+
+// Convierte nuestros mensajes internos al formato que espera OpenAI SDK
+export function toOpenAIMessages(messages: ChatMessage[]): any[] {
+  return messages.map(m => {
+    if (m.role === 'tool') {
+      return {
+        role: 'tool' as const,
+        content: m.content,
+        tool_call_id: m.tool_call_id || 'unknown'
+      }
+    }
+    return {
+      role: m.role,
+      content: m.content,
+      tool_calls: m.tool_calls
+    }
+  })
 }
 
 // ── Utilidades de resiliencia ──────────────────────────────────────────────────
+
+// Errores HTTP de la SDK/fetch: status en .status o .statusCode
+function errStatus(err: unknown): number | undefined {
+  const e = err as { status?: unknown; statusCode?: unknown }
+  return typeof e?.status === 'number' ? e.status : typeof e?.statusCode === 'number' ? e.statusCode : undefined
+}
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err)
+}
 
 // Retries con backoff exponencial + jitter. Solo reintenta en errores transitorios.
 async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, baseMs = 400): Promise<T> {
@@ -369,15 +405,15 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3, baseMs = 400)
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       return await fn()
-    } catch (err: any) {
+    } catch (err) {
       lastErr = err
-      const status = err?.status ?? err?.statusCode
+      const status = errStatus(err)
       // No reintentar en errores del cliente (4xx salvo 429)
       if (status && status >= 400 && status < 500 && status !== 429) throw err
       if (attempt < maxAttempts - 1) {
         const delay = baseMs * 2 ** attempt + Math.random() * 200
         await new Promise(r => setTimeout(r, delay))
-        console.warn(`[OpenRouter] Intento ${attempt + 2}/${maxAttempts} tras error: ${err?.message}`)
+        console.warn(`[OpenRouter] Intento ${attempt + 2}/${maxAttempts} tras error: ${errMsg(err)}`)
       }
     }
   }
@@ -395,9 +431,9 @@ async function withModelFallback<T>(
   for (const model of chain) {
     try {
       return await fn(model)
-    } catch (err: any) {
+    } catch (err) {
       lastErr = err
-      const status = err?.status ?? err?.statusCode
+      const status = errStatus(err)
       if (status === 404 || status === 400) {
         console.warn(`[OpenRouter] Modelo ${model} no disponible, probando siguiente...`)
         continue
@@ -426,7 +462,7 @@ export async function chatSingle(
     withModelFallback(primaryModel, async (m) => {
       const res = await getClient().chat.completions.create({
         model: m,
-        messages: allMessages,
+        messages: toOpenAIMessages(allMessages),
         max_tokens: maxTokens,
       })
       return res.choices[0]?.message?.content ?? ''
@@ -467,6 +503,10 @@ export async function chatBattle(
 // ── JSON estructurado ─────────────────────────────────────────────────────────
 // Estrategia de parsing robusta:
 //   1. Intenta con response_format json_object (nativo, el mejor)
+// Resultado JSON "suelto": permite lectura de propiedades sin cast en los ~50
+// puntos de llamada, manteniendo la seguridad de unknown (nada implícito-any).
+export type JSONResult = Record<string, unknown>
+
 //   2. Si el modelo no lo soporta → fallback sin format flag + repair manual
 //   3. El repair es mínimo (solo lo imprescindible para no inventar datos)
 export async function chatJSON(
@@ -475,14 +515,14 @@ export async function chatJSON(
   modelOverride?: string,
   maxTokens = 4000,
   temperature?: number
-): Promise<any> {
+): Promise<JSONResult> {
   const messages: ChatMessage[] = []
   if (systemPrompt) messages.push({ role: 'system', content: systemPrompt })
   messages.push({ role: 'user', content: prompt })
 
   const model = modelOverride || MODELS.claude
 
-  const extractJSON = (text: string): any => {
+  const extractJSON = (text: string): JSONResult => {
     // Limpia fences de markdown
     let c = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
     // Busca el JSON entre el primer { y el último }
@@ -490,7 +530,7 @@ export async function chatJSON(
     if (s !== -1 && e > s) c = c.slice(s, e + 1)
 
     // Intento directo
-    try { return JSON.parse(c) } catch {}
+    try { return JSON.parse(c) as JSONResult } catch {}
 
     // Limpia caracteres de control dentro de strings
     let out = '', inStr = false, esc = false
@@ -528,23 +568,23 @@ export async function chatJSON(
     out = out.replace(/,\s*$/, '')
     while (stack.length) out += stack.pop()
 
-    return JSON.parse(out)
+    return JSON.parse(out) as JSONResult
   }
 
   return withRetry(async () => {
     // Intento 1: con json_object nativo
     try {
       const res = await getClient().chat.completions.create({
-        model, messages, max_tokens: maxTokens,
+        model, messages: toOpenAIMessages(messages), max_tokens: maxTokens,
         ...(temperature != null ? { temperature } : {}),
-        response_format: { type: 'json_object' } as any,
+        response_format: { type: 'json_object' as const },
       })
       return extractJSON(res.choices[0]?.message?.content ?? '{}')
-    } catch (err: any) {
+    } catch (err) {
       // Si el modelo no soporta json_object o hay error de parseo, fallback
-      if (err?.status === 400 || err instanceof SyntaxError) {
+      if (errStatus(err) === 400 || err instanceof SyntaxError) {
         const res = await getClient().chat.completions.create({
-          model: MODELS.claude, messages, max_tokens: maxTokens,
+          model: MODELS.claude, messages: toOpenAIMessages(messages), max_tokens: maxTokens,
           ...(temperature != null ? { temperature } : {}),
         })
         return extractJSON(res.choices[0]?.message?.content ?? '{}')
@@ -584,7 +624,12 @@ export async function* chatStream(
   const think = planThinking(selectedModel, thinkLevel)
   const showReasoning = thinkLevel === 'deep'   // en Profundo mostramos el razonamiento
 
-  const allMessages: any[] = []
+  // Mensajes con contenido multimodal (texto + imagen) para la SDK
+  type MultimodalMessage = {
+    role: 'user' | 'assistant' | 'system' | 'tool'
+    content: string | ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[]
+  }
+  const allMessages: MultimodalMessage[] = []
   // Si el modelo NO tiene razonamiento nativo y se pidió Profundo, inyectamos CoT
   // en el system prompt (la razona dentro de <think> y la filtramos después).
   const sys = think.cot ? `${systemPrompt || ''}${COT_INSTRUCTION}` : systemPrompt
@@ -618,24 +663,45 @@ export async function* chatStream(
     (m, i, arr) => arr.indexOf(m) === i
   )
 
+  // Chunk crudo del stream: delta con texto y/o razonamiento nativo de OpenRouter
+  interface StreamDelta {
+    content?: string | null
+    reasoning?: string | null
+  }
+  interface RawStreamChunk {
+    choices?: { delta?: StreamDelta }[]
+  }
+  // Parámetros que acepta OpenRouter: los de OpenAI + `reasoning` (extensión propia)
+  interface OpenRouterStreamParams {
+    model: string
+    messages: MultimodalMessage[]
+    max_tokens: number
+    temperature: number
+    stream: true
+    reasoning?: ReasoningConfig
+  }
+
   for (const m of modelsToTry) {
     try {
       // reasoning solo para el modelo concreto que soporta el parámetro (evita
       // errores en modelos que no lo entienden, cuyo manejo no está documentado).
       const reasoning = !imageData ? planThinking(m, thinkLevel).reasoning : undefined
-      const params: any = {
+      const params: OpenRouterStreamParams = {
         model: m,
         messages: allMessages,
         max_tokens: maxTokens,
         temperature: modelTemp,
         stream: true,
+        ...(reasoning ? { reasoning } : {}),
       }
-      if (reasoning) params.reasoning = reasoning
-      const rawStream = await getClient().chat.completions.create(params) as any
+      const createParams = params as unknown as Parameters<
+        ReturnType<typeof getClient>['chat']['completions']['create']
+      >[0]
 
       async function* fromRaw(): AsyncGenerator<StreamPart> {
-        for await (const chunk of rawStream) {
-          const delta = chunk.choices[0]?.delta
+        const rawStream = await getClient().chat.completions.create(createParams)
+        for await (const chunk of rawStream as unknown as AsyncIterable<RawStreamChunk>) {
+          const delta = chunk.choices?.[0]?.delta
           // Razonamiento nativo (Claude/Gemini/o-series con exclude:false): campo aparte.
           const r = delta?.reasoning
           if (r && showReasoning) yield { __reasoning: r }
@@ -648,8 +714,8 @@ export async function* chatStream(
       const outputStream = (THINKING_MODELS.has(m) || think.cot) ? filterThinkingParts(fromRaw(), showReasoning) : fromRaw()
       for await (const part of outputStream) yield part
       return
-    } catch (err: any) {
-      const status = err?.status ?? err?.statusCode
+    } catch (err) {
+      const status = errStatus(err)
       if (status === 404 || status === 400) {
         console.warn(`[OpenRouter] ${m} falló (${status}), intentando siguiente modelo...`)
         continue
@@ -687,7 +753,7 @@ export async function* chatChainStream(
     const res = await withRetry(() =>
       withModelFallback(specialistModelId, async (m) =>
         getClient().chat.completions.create({
-          model: m, messages: msgs,
+          model: m, messages: toOpenAIMessages(msgs),
           max_tokens: Math.min(maxTokens, 4000),
           temperature,
         })
@@ -697,7 +763,7 @@ export async function* chatChainStream(
     // Eliminar bloques <think> de modelos de razonamiento
     specialistOutput = specialistOutput.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
   } catch (err) {
-    console.warn('[Chain] Especialista falló, usando modo simple:', (err as any)?.message)
+    console.warn('[Chain] Especialista falló, usando modo simple:', errMsg(err))
     yield* chatStream(messages, 'claude', systemPrompt, writerModelId)
     return
   }

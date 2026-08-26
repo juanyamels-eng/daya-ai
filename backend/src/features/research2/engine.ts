@@ -15,7 +15,7 @@
 // Investigación iterativa con registro de tareas cancelable.
 // ============================================
 
-import { chatJSON, chatSingle } from '../../services/openrouter'
+import { chatJSON } from '../../services/openrouter'
 import { searchAndRank, RankedResult } from '../searchrank/ranking'
 import { domainOf } from '../../utils/url'
 import { readPageText } from '../readurl/route'
@@ -299,7 +299,7 @@ async function execute(
   const markdown = `${parsed.content || ''}\n\n## Bibliografía\n\n${biblio}`
 
   return {
-    title: parsed.title || `Informe: ${topic}`,
+    title: String(parsed.title) || `Informe: ${topic}`,
     markdown,
     sources: used.map(s => ({ title: s.title, url: s.url, score: s.score })),
   }
@@ -355,11 +355,11 @@ export function startResearch(userId: string, topic: string, opts: ResearchOptio
       )
       task.result = report
       setProgress(task, { phase: 'done', message: 'Investigación completada.' }, opts.onProgress)
-    } catch (e: any) {
-      if (e?.message === '__CANCELLED__' || task.cancel) {
+    } catch (e) {
+      if ((e instanceof Error ? e.message : String(e)) === '__CANCELLED__' || task.cancel) {
         setProgress(task, { phase: 'cancelled', message: 'Investigación cancelada.' }, opts.onProgress)
       } else {
-        task.error = e?.message || 'La investigación falló.'
+        task.error = e instanceof Error ? e.message : 'La investigación falló.'
         setProgress(task, { phase: 'error', message: task.error! }, opts.onProgress)
       }
     }

@@ -7,7 +7,7 @@
 // NOTA: requiere `npx prisma generate && npx prisma db push` en tu entorno para
 // crear la tabla CalendarEvent. Mientras tanto accedemos vía `db` (cast).
 // ============================================
-import { Router, Request, Response } from 'express'
+import { Router, Request } from 'express'
 import { requireAuth } from '../../middleware/auth'
 import { prisma } from '../../lib/prisma'
 

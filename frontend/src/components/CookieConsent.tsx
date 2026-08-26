@@ -6,7 +6,6 @@
 // ============================================
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { useT } from '../lib/i18n'
 
 const CONSENT_KEY = 'daya-cookie-consent'
 
@@ -23,7 +22,6 @@ export function getConsent(): CookieConsent | null {
 }
 
 export default function CookieConsent() {
-  const t = useT()
   const [show, setShow] = useState(false)
   const [details, setDetails] = useState(false)
   const [analytics, setAnalytics] = useState(true)

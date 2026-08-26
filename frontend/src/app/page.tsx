@@ -5,7 +5,13 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '../store'
 import { LangSelector } from '../components/LangSelector'
-import { Check } from '../components/ProductShowcase'
+
+// Check de las listas de precios (antes vivía en ProductShowcase, ya eliminado)
+function Check() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+  )
+}
 
 const LANDING_ART = [
   '/showcase/showcase-01.jpg',

@@ -247,8 +247,8 @@ router.post('/chat', async (req: Request, res: Response) => {
       }
       send({ type: 'done' })
     }
-  } catch (e: any) {
-    if (!cancelled) send({ type: 'error', message: e?.message || 'Error en el chat de Studio.' })
+  } catch (e) {
+    if (!cancelled) send({ type: 'error', message: e instanceof Error ? e.message : 'Error en el chat de Studio.' })
   }
   res.end()
 })
@@ -419,8 +419,8 @@ router.post('/agent', async (req: Request, res: Response) => {
     history: { role: string; content: string }[]
     canvas?: { w: number; h: number; bg?: string }
     selection?: string[]
-    elements?: any[]
-    selDetails?: any[]
+    elements?: { id: string; type: string; x: number; y: number; w: number; h: number; fs: number; txt?: string; fill?: string }[]
+    selDetails?: { id: string; type: string; txt?: unknown; fill?: string; stroke?: string; sw?: number; opacity?: number; fs?: number; fw?: string; ta?: string; rot?: number }[]
   }
   if (!message?.trim()) return res.status(400).json({ error: 'Mensaje vacío.' })
 
@@ -434,7 +434,7 @@ router.post('/agent', async (req: Request, res: Response) => {
     `Lienzo: ${canvas?.w ?? 1080}x${canvas?.h ?? 1080}, fondo ${canvas?.bg ?? '#ffffff'}.`,
     `Selección: ${Array.isArray(selection) && selection.length ? selection.join(', ') : '(ninguna)'}.`,
     `Elementos (${elements.length}): ${elements.length
-      ? elements.slice(0, 60).map((e: any) => {
+      ? elements.slice(0, 60).map(e => {
           let s = `${e.id}:${e.type}@(${Math.round(e.x)},${Math.round(e.y)}) ${Math.round(e.w)}x${Math.round(e.h)}`
           if (e.type === 'text') {
             const role = (e.fs >= 48 ? 'titular' : e.fs >= 24 ? 'sub' : 'texto')
@@ -484,7 +484,7 @@ router.post('/agent', async (req: Request, res: Response) => {
 
     if (!cancelled) {
       const m = full.match(/\[STUDIO_ACTIONS:\s*(\[[\s\S]*\])\s*\]\s*$/) || full.match(/\[STUDIO_ACTIONS:\s*(\[[\s\S]*?\])\s*\]/)
-      let actions: any[] = []
+      let actions: unknown[] = []
       if (m) {
         try {
           const parsed = JSON.parse(m[1])
@@ -496,8 +496,8 @@ router.post('/agent', async (req: Request, res: Response) => {
       send({ type: 'actions', actions })
       send({ type: 'done' })
     }
-  } catch (e: any) {
-    if (!cancelled) send({ type: 'error', message: e?.message || 'Error en el asistente de Studio.' })
+  } catch (e) {
+    if (!cancelled) send({ type: 'error', message: e instanceof Error ? e.message : 'Error en el asistente de Studio.' })
   }
   res.end()
 })
@@ -642,7 +642,7 @@ router.post('/design', async (req: Request, res: Response) => {
 
   // Cuota de diseños de Studio por plan.
   const { consumeQuota } = await import('../../services/quota')
-  const dq = await consumeQuota((req as any).userId, 'studio')
+  const dq = await consumeQuota(req.userId, 'studio')
   if (!dq.ok) return res.status(429).json({ error: dq.error })
 
   // Sección de paletas (P4): opcional y retrocompatible — si el cliente no la envía,
@@ -689,15 +689,15 @@ router.post('/design', async (req: Request, res: Response) => {
             colors: { ...(spec.colors || {}), ...(refined.colors || {}) },
           }
         }
-      } catch (e: any) { console.warn('[Studio/design] crítica omitida:', e?.message) }
+      } catch (e) { console.warn('[Studio/design] crítica omitida:', e instanceof Error ? e.message : String(e)) }
     }
     res.json(finalSpec)
-  } catch (e: any) {
-    console.warn('[Studio/design] error:', e?.message)
+  } catch (e) {
+    console.warn('[Studio/design] error:', e instanceof Error ? e.message : String(e))
     // Cuota consumida arriba pero el diseño no se generó: devolverla.
     const { refundQuota } = await import('../../services/quota')
-    await refundQuota((req as any).userId, 'studio')
-    res.status(500).json({ error: e?.message || 'Error generando el diseño.' })
+    await refundQuota(req.userId, 'studio')
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error generando el diseño.' })
   }
 })
 
@@ -743,7 +743,7 @@ router.post('/carousel', async (req: Request, res: Response) => {
   if (!brief?.trim()) return res.status(400).json({ error: 'Brief vacío.' })
 
   const { consumeQuota } = await import('../../services/quota')
-  const dq = await consumeQuota((req as any).userId, 'studio')
+  const dq = await consumeQuota(req.userId, 'studio')
   if (!dq.ok) return res.status(429).json({ error: dq.error })
 
   const paletteBlock = palettes?.trim() ? `PALETAS CURADAS (elige/adapta UNA según el tema):\n${palettes}\n\n` : ''
@@ -759,11 +759,11 @@ router.post('/carousel', async (req: Request, res: Response) => {
   try {
     const spec = await chatJSON(prompt, CAROUSEL_SYSTEM, MODELS.claude, 4000, 0.6)
     res.json(spec)
-  } catch (e: any) {
-    console.warn('[Studio/carousel] error:', e?.message)
+  } catch (e) {
+    console.warn('[Studio/carousel] error:', e instanceof Error ? e.message : String(e))
     const { refundQuota } = await import('../../services/quota')
-    await refundQuota((req as any).userId, 'studio')
-    res.status(500).json({ error: e?.message || 'Error generando el carrusel.' })
+    await refundQuota(req.userId, 'studio')
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error generando el carrusel.' })
   }
 })
 
@@ -809,7 +809,7 @@ router.post('/deck', async (req: Request, res: Response) => {
   if (!brief?.trim()) return res.status(400).json({ error: 'Brief vacío.' })
 
   const { consumeQuota } = await import('../../services/quota')
-  const dq = await consumeQuota((req as any).userId, 'studio')
+  const dq = await consumeQuota(req.userId, 'studio')
   if (!dq.ok) return res.status(429).json({ error: dq.error })
 
   const paletteBlock = palettes?.trim() ? `PALETAS CURADAS (elige/adapta UNA):\n${palettes}\n\n` : ''
@@ -825,11 +825,11 @@ router.post('/deck', async (req: Request, res: Response) => {
   try {
     const spec = await chatJSON(prompt, DECK_SYSTEM, MODELS.claude, 4500, 0.5)
     res.json(spec)
-  } catch (e: any) {
-    console.warn('[Studio/deck] error:', e?.message)
+  } catch (e) {
+    console.warn('[Studio/deck] error:', e instanceof Error ? e.message : String(e))
     const { refundQuota } = await import('../../services/quota')
-    await refundQuota((req as any).userId, 'studio')
-    res.status(500).json({ error: e?.message || 'Error generando la presentación.' })
+    await refundQuota(req.userId, 'studio')
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error generando la presentación.' })
   }
 })
 
@@ -875,7 +875,7 @@ router.post('/identity', async (req: Request, res: Response) => {
   if (!brief?.trim()) return res.status(400).json({ error: 'Brief vacío.' })
 
   const { consumeQuota } = await import('../../services/quota')
-  const dq = await consumeQuota((req as any).userId, 'studio')
+  const dq = await consumeQuota(req.userId, 'studio')
   if (!dq.ok) return res.status(429).json({ error: dq.error })
 
   const bc = Array.isArray(brand?.colors) ? brand!.colors!.slice(0, 8) : []
@@ -890,11 +890,11 @@ router.post('/identity', async (req: Request, res: Response) => {
   try {
     const spec = await chatJSON(prompt, IDENTITY_SYSTEM, MODELS.claude, 3000, 0.7)
     res.json(spec)
-  } catch (e: any) {
-    console.warn('[Studio/identity] error:', e?.message)
+  } catch (e) {
+    console.warn('[Studio/identity] error:', e instanceof Error ? e.message : String(e))
     const { refundQuota } = await import('../../services/quota')
-    await refundQuota((req as any).userId, 'studio')
-    res.status(500).json({ error: e?.message || 'Error generando la identidad.' })
+    await refundQuota(req.userId, 'studio')
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error generando la identidad.' })
   }
 })
 
@@ -918,7 +918,7 @@ router.post('/translate', async (req: Request, res: Response) => {
   if (!Array.isArray(languages) || !languages.length) return res.status(400).json({ error: 'Elige al menos un idioma.' })
 
   const { consumeQuota } = await import('../../services/quota')
-  const dq = await consumeQuota((req as any).userId, 'studio')
+  const dq = await consumeQuota(req.userId, 'studio')
   if (!dq.ok) return res.status(429).json({ error: dq.error })
 
   const clean = texts.map(t => String(t ?? '').slice(0, 500)).slice(0, 60)
@@ -928,15 +928,16 @@ router.post('/translate', async (req: Request, res: Response) => {
     try {
       const prompt = `IDIOMA DESTINO: ${lang}\n\nTEXTOS (array JSON, respeta el orden y el número):\n${JSON.stringify(clean)}\n\nTraduce cada texto al ${lang}. Responde SOLO el JSON { "translations": [...] }.`
       const spec = await chatJSON(prompt, TRANSLATE_SYSTEM, MODELS.flash, 3000, 0.3)
-      if (spec && Array.isArray(spec.translations) && spec.translations.length) {
+      const translations = Array.isArray(spec?.translations) ? (spec.translations as unknown[]) : []
+      if (translations.length) {
         // Alinea a la longitud original: si el modelo devuelve de más/menos, se corta/rellena.
-        out[lang] = clean.map((orig, i) => (typeof spec.translations[i] === 'string' ? spec.translations[i] : orig))
+        out[lang] = clean.map((orig, i) => (typeof translations[i] === 'string' ? (translations[i] as string) : orig))
       }
-    } catch (e: any) { console.warn(`[Studio/translate ${lang}] error:`, e?.message) }
+    } catch (e) { console.warn(`[Studio/translate ${lang}] error:`, e instanceof Error ? e.message : String(e)) }
   }
   if (!Object.keys(out).length) {
     const { refundQuota } = await import('../../services/quota')
-    await refundQuota((req as any).userId, 'studio')
+    await refundQuota(req.userId, 'studio')
     return res.status(500).json({ error: 'No se pudo traducir. Inténtalo de nuevo.' })
   }
   res.json(out)
@@ -995,9 +996,9 @@ router.post('/retheme', async (req: Request, res: Response) => {
   try {
     const spec = await chatJSON(prompt, RETHEME_SYSTEM, MODELS.claude, 3000, 0.5)
     res.json(spec)
-  } catch (e: any) {
-    console.warn('[Studio/retheme] error:', e?.message)
-    res.status(500).json({ error: e?.message || 'Error reestilizando el diseño.' })
+  } catch (e) {
+    console.warn('[Studio/retheme] error:', e instanceof Error ? e.message : String(e))
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error reestilizando el diseño.' })
   }
 })
 
@@ -1020,11 +1021,11 @@ router.post('/caption', async (req: Request, res: Response) => {
   if (!content?.trim()) return res.status(400).json({ error: 'Contenido vacío.' })
   const prompt = `PLATAFORMA: ${platform || 'instagram'}\n\nCONTENIDO DEL DISEÑO (sus textos):\n${content.trim().slice(0, 1500)}\n\nEscribe el caption y los hashtags. Responde SOLO el JSON.`
   try {
-    const out = await chatJSON(prompt, CAPTION_SYSTEM, MODELS.claude, 900, 0.7)
-    res.json({ caption: typeof out?.caption === 'string' ? out.caption : '', hashtags: Array.isArray(out?.hashtags) ? out.hashtags.filter((h: any) => typeof h === 'string').slice(0, 15) : [] })
-  } catch (e: any) {
-    console.warn('[Studio/caption] error:', e?.message)
-    res.status(500).json({ error: e?.message || 'Error generando el caption.' })
+    const out = await chatJSON(prompt, CAPTION_SYSTEM, MODELS.claude, 900, 0.7) as { caption?: string; hashtags?: unknown[] }
+    res.json({ caption: typeof out?.caption === 'string' ? out.caption : '', hashtags: Array.isArray(out?.hashtags) ? out.hashtags.filter(h => typeof h === 'string').slice(0, 15) : [] })
+  } catch (e) {
+    console.warn('[Studio/caption] error:', e instanceof Error ? e.message : String(e))
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error generando el caption.' })
   }
 })
 
@@ -1055,15 +1056,15 @@ router.post('/rewrite', async (req: Request, res: Response) => {
   const instr = INSTR[action || 'improve'] || INSTR.improve
   const prompt = `TEXTO ORIGINAL:\n"${t}"\n\nTAREA: ${instr}\n\nResponde SOLO el JSON.`
   try {
-    const out = await chatJSON(prompt, REWRITE_SYSTEM, MODELS.flash, 1200, 0.7)
+    const out = await chatJSON(prompt, REWRITE_SYSTEM, MODELS.flash, 1200, 0.7) as { result?: string; variants?: unknown[] }
     if (action === 'variants') {
-      res.json({ variants: Array.isArray(out?.variants) ? out.variants.filter((x: any) => typeof x === 'string' && x.trim()).slice(0, 3) : [] })
+      res.json({ variants: Array.isArray(out?.variants) ? out.variants.filter(x => typeof x === 'string' && x.trim()).slice(0, 3) : [] })
     } else {
       res.json({ result: typeof out?.result === 'string' ? out.result : '' })
     }
-  } catch (e: any) {
-    console.warn('[Studio/rewrite] error:', e?.message)
-    res.status(500).json({ error: e?.message || 'Error reescribiendo el texto.' })
+  } catch (e) {
+    console.warn('[Studio/rewrite] error:', e instanceof Error ? e.message : String(e))
+    res.status(500).json({ error: e instanceof Error ? e.message : 'Error reescribiendo el texto.' })
   }
 })
 

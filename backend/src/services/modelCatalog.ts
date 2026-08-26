@@ -13,6 +13,7 @@
 import fs from 'fs'
 import path from 'path'
 import { loadConfigObj, saveConfigObj } from './configStore'
+import { logger } from './logger'
 
 // ── Vigilancia de modelos en uso (alerta de IDs muertos) ─────────────────────
 // Un ID que desaparece de OpenRouter devuelve 404 y los fallbacks degradan EN
@@ -131,7 +132,7 @@ async function checkModelsInUse(liveCanonIds: Set<string>, extra?: Partial<Model
       }
     } catch { /* el correo nunca debe romper el chequeo */ }
   } else {
-    console.log(`✅ Salud de modelos: los ${watched.length} IDs en uso siguen vivos en OpenRouter`)
+    logger.info(`✅ Salud de modelos: los ${watched.length} IDs en uso siguen vivos en OpenRouter`)
   }
 
   try { await saveConfigObj(ALERT_KEY, alert) } catch {}
@@ -185,8 +186,19 @@ try {
   if (fs.existsSync(CACHE_FILE)) catalog = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'))
 } catch {}
 
+// Modelo crudo tal como llega del endpoint /models de OpenRouter (campos que usamos)
+interface RawCatalogModel {
+  id?: string
+  created?: number
+  context_length?: number
+  pricing?: { prompt?: string; completion?: string }
+  architecture?: { input_modalities?: string[] }
+  supported_parameters?: string[]
+  top_provider?: { is_deprecated?: boolean }
+}
+
 // Aplica los filtros a la lista cruda de modelos de OpenRouter.
-export function applyFilters(models: any[]): Catalog {
+export function applyFilters(models: RawCatalogModel[]): Catalog {
   const now = Date.now()
   const cheap: string[] = [], mid: string[] = [], premium: string[] = [], all: string[] = []
   const meta: Record<string, ModelMeta> = {}
@@ -239,8 +251,8 @@ export async function refreshModelCatalog(): Promise<void> {
     const baseURL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1'
     const res = await fetch(`${baseURL}/models`)
     if (!res.ok) { console.warn('Catálogo OpenRouter no disponible:', res.status); return }
-    const data = await res.json() as any
-    const models = Array.isArray(data?.data) ? data.data : []
+    const data = await res.json() as { data?: RawCatalogModel[] }
+    const models: RawCatalogModel[] = Array.isArray(data?.data) ? data.data : []
     if (!models.length) return
 
     // La ficha ANTERIOR se guarda antes de pisarla: es lo único que nos dice qué
@@ -250,7 +262,7 @@ export async function refreshModelCatalog(): Promise<void> {
 
     catalog = applyFilters(models)
     try { fs.writeFileSync(CACHE_FILE, JSON.stringify(catalog)) } catch {}
-    console.log(`📚 Catálogo DAYA actualizado: ${catalog.cheap.length} baratos · ${catalog.mid.length} medios · ${catalog.premium.length} premium`)
+    logger.info(`📚 Catálogo DAYA actualizado: ${catalog.cheap.length} baratos · ${catalog.mid.length} medios · ${catalog.premium.length} premium`)
 
     // Aviso si un modelo PREFERIDO desapareció (para que lo sepas)
     if (!catalog.all.includes(PREFERRED.cheap)) console.warn(`⚠️ El modelo barato preferido (${PREFERRED.cheap}) ya no está disponible`)
@@ -258,14 +270,14 @@ export async function refreshModelCatalog(): Promise<void> {
 
     // Catálogo crudo, sin filtros, para no marcar como muertos alias válidos o
     // marcas no listadas.
-    const liveCanonIds = new Set<string>(models.map((m: any) => canon(String(m?.id || ''))))
+    const liveCanonIds = new Set<string>(models.map((m: RawCatalogModel) => canon(String(m?.id || ''))))
 
     // 1º SANEAR (sustituir los muertos, adoptar versiones nuevas) y 2º vigilar:
     // así la alerta solo se queda con lo que no se ha podido arreglar solo.
     const { changes, suggestions } = await healModels(liveCanonIds, prevMeta)
     await checkModelsInUse(liveCanonIds, { changes, suggestions })
-  } catch (e: any) {
-    console.error('No se pudo actualizar el catálogo de modelos:', e?.message || e)
+  } catch (e) {
+    console.error('No se pudo actualizar el catálogo de modelos:', e instanceof Error ? e.message : e)
   }
 }
 
@@ -504,10 +516,10 @@ async function healModels(liveCanonIds: Set<string>, prevMeta: Record<string, Mo
   }
 
   if (changes.length) {
-    console.log(`🔄 Modelos actualizados solos (${changes.length}):`)
+    logger.info(`🔄 Modelos actualizados solos (${changes.length}):`)
     for (const c of changes) {
       const precio = c.priceFrom && c.priceTo ? ` — $${c.priceFrom.toFixed(2)} → $${c.priceTo.toFixed(2)} por millón` : ''
-      console.log(`   ${c.reason === 'muerto' ? '🚑' : '⬆️'} ${c.source}.${c.role}: ${c.from} → ${c.to}${precio}`)
+      logger.info(`   ${c.reason === 'muerto' ? '🚑' : '⬆️'} ${c.source}.${c.role}: ${c.from} → ${c.to}${precio}`)
     }
     // Se guardan para que sobrevivan a un reinicio: al arrancar se aplican de
     // nuevo sin esperar al primer refresco (ver applyStoredOverrides).
@@ -523,8 +535,8 @@ async function healModels(liveCanonIds: Set<string>, prevMeta: Record<string, Mo
   }
 
   if (suggestions.length) {
-    console.log('💡 Versiones nuevas disponibles que NO se adoptaron solas (precio o capacidades):')
-    for (const s of suggestions) console.log(`   ${s.role}: ${s.from} → ${s.to} ($${s.priceFrom.toFixed(2)} → $${s.priceTo.toFixed(2)})`)
+    logger.info('💡 Versiones nuevas disponibles que NO se adoptaron solas (precio o capacidades):')
+    for (const s of suggestions) logger.info(`   ${s.role}: ${s.from} → ${s.to} ($${s.priceFrom.toFixed(2)} → $${s.priceTo.toFixed(2)})`)
   }
   return { changes, suggestions }
 }
@@ -553,7 +565,7 @@ export async function applyStoredOverrides(): Promise<number> {
         n++
       }
     }
-    if (n) console.log(`🔁 ${n} modelo(s) restaurados desde el último saneo (a la espera del refresco del catálogo)`)
+    if (n) logger.info(`🔁 ${n} modelo(s) restaurados desde el último saneo (a la espera del refresco del catálogo)`)
     return n
   } catch { return 0 }
 }
@@ -583,7 +595,7 @@ export function getPremiumModel(): string {
    tiene su propia tabla de respaldo y es mejor que la use a que asumamos. */
 export function reasoningFieldFor(id: string): 'effort' | 'tokens' | null {
   const meta = catalog?.meta?.[id]
-  if (!meta || typeof (meta as any).reason !== 'boolean') return null
+  if (!meta || typeof meta.reason !== 'boolean') return null
   if (!meta.reason) return null
   return meta.effort ? 'effort' : 'tokens'
 }

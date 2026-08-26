@@ -175,7 +175,7 @@ export default function ArtifactPanel({ artifact, onClose }: { artifact: Artifac
   }
 
   return (
-    <div style={{ width: 'clamp(340px, 42vw, 580px)', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-default)', background: 'var(--bg-surface)', overflow: 'hidden', animation: 'slideInArtifact 0.3s cubic-bezier(0.16,1,0.3,1) both' }}>
+    <div className="daya-artifact" style={{ width: 'clamp(340px, 42vw, 580px)', flexShrink: 0, display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-default)', background: 'var(--bg-surface)', overflow: 'hidden', animation: 'slideInArtifact 0.3s cubic-bezier(0.16,1,0.3,1) both' }}>
 
       {/* Header */}
       <div style={{ padding: '11px 14px', borderBottom: '1px solid var(--border-default)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: 'var(--bg-base)' }}>

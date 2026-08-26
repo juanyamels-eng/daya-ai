@@ -2,6 +2,10 @@
 // El módulo carga dinámicamente vía try/catch; si no está instalado el sistema
 // cae al analizador regex/indentación. Este stub solo satisface al compilador.
 declare module 'web-tree-sitter' {
-  const Parser: any
+  interface ParserInstance {
+    setLanguage: (lang: unknown) => Promise<void>
+    parse: (input: string, oldTree?: unknown) => { rootNode: unknown }
+  }
+  const Parser: new () => ParserInstance
   export default Parser
 }

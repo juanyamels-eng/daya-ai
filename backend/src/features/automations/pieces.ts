@@ -15,7 +15,7 @@
 // ============================================
 
 // El "bus" de datos que fluye por la receta: cada paso lee y escribe aquí.
-export type Bus = Record<string, any>
+export type Bus = Record<string, unknown>
 
 // Contexto que reciben las piezas al ejecutarse.
 export interface PieceCtx {
@@ -41,7 +41,7 @@ export interface TriggerPiece {
   schema: Record<string, FieldSpec>
   // Evalúa si debe dispararse. Devuelve null si NO, o un objeto con datos
   // iniciales para el bus si SÍ. Recibe la config de la receta.
-  evaluate: (config: Record<string, any>, ctx: PieceCtx) => Promise<Bus | null>
+  evaluate: (config: Record<string, unknown>, ctx: PieceCtx) => Promise<Bus | null>
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ export interface ActionPiece {
   description: string
   schema: Record<string, FieldSpec>
   // Ejecuta la acción. Devuelve datos para añadir al bus (o {}).
-  run: (config: Record<string, any>, ctx: PieceCtx) => Promise<Bus>
+  run: (config: Record<string, unknown>, ctx: PieceCtx) => Promise<Bus>
 }
 
 export type Piece = TriggerPiece | ActionPiece
@@ -78,12 +78,12 @@ function serialize(p: Piece) {
 }
 
 // Resuelve referencias {{var}} en la config con valores del bus.
-export function resolveConfig(config: Record<string, any>, bus: Bus): Record<string, any> {
-  const out: Record<string, any> = {}
+export function resolveConfig(config: Record<string, unknown>, bus: Bus): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
   for (const [k, v] of Object.entries(config || {})) {
     if (typeof v === 'string') {
       out[k] = v.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (_, path) => {
-        const val = path.split('.').reduce((acc: any, key: string) => acc?.[key], bus)
+        const val = path.split('.').reduce((acc: Record<string, unknown> | undefined, key: string) => acc?.[key], bus)
         return val == null ? '' : String(val)
       })
     } else out[k] = v
@@ -122,7 +122,7 @@ registerTrigger({
   evaluate: async (_c, ctx) => {
     try {
       const { prisma } = await import('../../lib/prisma')
-      const acc = await (prisma as any).emailAccount.findUnique({ where: { userId: ctx.userId } })
+      const acc = await prisma.emailAccount.findUnique({ where: { userId: ctx.userId } })
       if (!acc) return null
       // No abrimos IMAP aquí (costoso); delegamos el conteo al worker que ya lo hace.
       // Como señal simple, este trigger pasa y deja que las acciones decidan.
@@ -140,9 +140,9 @@ registerTrigger({
     try {
       const { prisma } = await import('../../lib/prisma')
       const soon = Date.now() + 24 * 60 * 60 * 1000
-      const tasks = await (prisma as any).task.findMany({ where: { userId: ctx.userId, done: false, dueDate: { not: null } }, take: 50 })
-      const due = tasks.filter((t: any) => new Date(t.dueDate).getTime() <= soon)
-      return due.length ? { dueTasks: due.map((t: any) => t.title), dueCount: due.length } : null
+      const tasks = await prisma.task.findMany({ where: { userId: ctx.userId, done: false, dueDate: { not: null } }, take: 50 })
+      const due = tasks.filter((t) => new Date(t.dueDate as Date).getTime() <= soon)
+      return due.length ? { dueTasks: due.map((t) => t.title), dueCount: due.length } : null
     } catch { return null }
   },
 })
@@ -159,8 +159,8 @@ registerAction({
   },
   run: async (config, ctx) => {
     const { prisma } = await import('../../lib/prisma')
-    const task = await (prisma as any).task.create({
-      data: { userId: ctx.userId, title: String(config.title || 'Tarea').slice(0, 240), priority: config.priority || 'normal' },
+    const task = await prisma.task.create({
+      data: { userId: ctx.userId, title: String(config.title || 'Tarea').slice(0, 240), priority: (config.priority as string) || 'normal' },
     })
     return { taskId: task.id, taskTitle: task.title }
   },
@@ -176,7 +176,7 @@ registerAction({
   },
   run: async (config, ctx) => {
     const { prisma } = await import('../../lib/prisma')
-    const note = await (prisma as any).note.create({
+    const note = await prisma.note.create({
       data: { userId: ctx.userId, title: String(config.title || 'Nota').slice(0, 200), content: String(config.content || '').slice(0, 20000) },
     })
     return { noteId: note.id }
@@ -207,7 +207,7 @@ registerAction({
       const { runResearch } = await import('../research2/engine')
       const report = await runResearch(String(config.topic || ''), { rounds: 2 })
       return { researchTitle: report.title, researchMarkdown: report.markdown }
-    } catch (e: any) { return { researchError: e?.message || 'falló' } }
+    } catch (e) { return { researchError: e instanceof Error ? e.message : 'falló' } }
   },
 })
 
@@ -222,10 +222,10 @@ registerAction({
   run: async (config) => {
     try {
       const { ask } = await import('../oracle/oracleConnector')
-      const q = config.connector === 'url' ? { url: config.arg } : { connector: config.connector, arg: config.arg }
-      const result = await ask(q as any)
+      const q = config.connector === 'url' ? { url: config.arg as string | undefined } : { connector: config.connector as 'github' | 'crypto', arg: config.arg as string | undefined }
+      const result = await ask(q)
       return { apiResult: result }
-    } catch (e: any) { return { apiError: e?.message || 'falló' } }
+    } catch (e) { return { apiError: e instanceof Error ? e.message : 'falló' } }
   },
 })
 
@@ -239,7 +239,7 @@ registerAction({
       const { chatSingle } = await import('../../services/openrouter')
       const text = await chatSingle([{ role: 'user', content: String(config.prompt || '') }], 'claude')
       return { aiText: text }
-    } catch (e: any) { return { aiError: e?.message || 'falló' } }
+    } catch (e) { return { aiError: e instanceof Error ? e.message : 'falló' } }
   },
 })
 
@@ -250,7 +250,7 @@ registerAction({
   schema: { message: { type: 'string', label: 'Mensaje', required: true } },
   run: async (config, ctx) => {
     try {
-      const mod: any = await import('../worker/backgroundWorker')
+      const mod = await import('../worker/backgroundWorker')
       // pushNotification es interno; usamos el almacén público vía un job-less aviso.
       // Fallback: si no hay API pública, guardamos como nota.
       if (typeof mod.getNotifications === 'function') {
@@ -259,7 +259,7 @@ registerAction({
     } catch { /* sigue al fallback */ }
     try {
       const { prisma } = await import('../../lib/prisma')
-      await (prisma as any).note.create({ data: { userId: ctx.userId, title: '🔔 Automatización', content: String(config.message || '').slice(0, 4000) } })
+      await prisma.note.create({ data: { userId: ctx.userId, title: '🔔 Automatización', content: String(config.message || '').slice(0, 4000) } })
     } catch { /* nada */ }
     return { notified: true }
   },

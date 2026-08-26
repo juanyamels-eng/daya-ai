@@ -184,8 +184,8 @@ router.post('/', chatBurstLimiter, async (req: Request, res: Response) => {
     const userPrompt = `Mensaje del usuario:\n${message}\n\nContenido de la página (${urlMatch[0]}):\n"""\n${page.text}\n"""`
     const answer = await chatSingle([{ role: 'user', content: userPrompt }], 'claude', system, undefined, 1500)
     res.json({ answer: answer?.trim() || 'No pude generar una respuesta sobre esa página.' })
-  } catch (e: any) {
-    console.error('[read-url] error al responder sobre la página:', e?.message || e)
+  } catch (e) {
+    console.error('[read-url] error al responder sobre la página:', e instanceof Error ? e.message : e)
     res.status(200).json({ answer: 'Leí la página pero hubo un error al redactar la respuesta. Intenta de nuevo.' })
   }
 })

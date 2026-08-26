@@ -39,7 +39,7 @@ export default function GameCanvas({ make, className = '', ariaLabel, hint }) {
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
       canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      game.reset && game.reset(W, H)
+      if (game.reset) game.reset(W, H)
     }
 
     const frame = (now) => {
@@ -66,7 +66,7 @@ export default function GameCanvas({ make, className = '', ariaLabel, hint }) {
 
     const ro = new ResizeObserver(size); ro.observe(canvas)
     const io = new IntersectionObserver(
-      (es) => { visible = es[0].isIntersecting; visible ? play() : stop() },
+      (es) => { visible = es[0].isIntersecting; if (visible) play(); else stop() },
       { threshold: 0.15 }
     )
     io.observe(wrap)

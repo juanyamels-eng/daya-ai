@@ -7,7 +7,7 @@ import { Request, Response, NextFunction } from 'express'
 import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 
-const db = prisma as any
+const db = prisma
 
 export async function requireApiToken(req: Request, res: Response, next: NextFunction) {
   const auth = req.headers.authorization || ''
@@ -19,11 +19,11 @@ export async function requireApiToken(req: Request, res: Response, next: NextFun
     const token = await db.apiToken.findFirst({ where: { tokenHash }, select: { id: true, userId: true } })
     if (!token) return res.status(401).json({ error: 'Token de API inválido o revocado.' })
 
-    ;(req as any).userId = token.userId
+    req.userId = token.userId
     // Marca de uso (sin bloquear la petición si falla).
     db.apiToken.update({ where: { id: token.id }, data: { lastUsedAt: new Date() } }).catch(() => {})
     next()
-  } catch (e: any) {
+  } catch {
     res.status(500).json({ error: 'No se pudo validar el token.' })
   }
 }

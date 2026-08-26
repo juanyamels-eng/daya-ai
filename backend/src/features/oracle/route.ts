@@ -15,8 +15,8 @@ router.post('/query', async (req: Request, res: Response) => {
   try {
     const result = await ask(req.body || {})
     res.json({ result })
-  } catch (e: any) {
-    res.status(400).json({ error: e?.message || 'La consulta falló.' })
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : 'La consulta falló.' })
   }
 })
 
@@ -31,8 +31,8 @@ router.post('/inspect', async (req: Request, res: Response) => {
       schema: describeSchema(target),
       summary: summarizeForAgent(data, { path }),
     })
-  } catch (e: any) {
-    res.status(400).json({ error: 'JSON no válido: ' + (e?.message || '') })
+  } catch (e) {
+    res.status(400).json({ error: 'JSON no válido: ' + (e instanceof Error ? e.message : '') })
   }
 })
 

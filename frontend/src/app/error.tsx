@@ -1,8 +1,10 @@
 'use client'
 
+import Link from 'next/link'
+
 // Pantalla de error global — si algo revienta en producción, el usuario ve
 // esto (con botón de reintentar) en vez de una pantalla blanca.
-export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
@@ -27,7 +29,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
         >
           Reintentar
         </button>
-        <a
+        <Link
           href="/"
           style={{
             padding: '11px 22px', borderRadius: 10,
@@ -37,7 +39,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
           }}
         >
           Ir al inicio
-        </a>
+        </Link>
       </div>
     </div>
   )
