@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, type ReactNode } from 'react'
-import { Users, MessageSquare, Brain, Rocket, Zap, Dna, Lightbulb } from 'lucide-react'
+import { Users, MessageSquare, Brain, Rocket, Zap, Dna, Lightbulb, type LucideIcon } from 'lucide-react'
 
 import { ADMIN_KEY, API } from '../../lib/config'
 
@@ -88,7 +88,7 @@ export default function AdminDashboard() {
             <StatRow label="Alta calidad (≥0.7)" value={stats?.training?.highQuality || 0} good />
             <StatRow label="Usuarios registrados" value={stats?.users?.total || 0} />
             <StatRow label="Nuevos hoy" value={stats?.users?.today || 0} />
-            <div style={{ marginTop: 8, padding: '12px', borderRadius: 10, background: stats?.training?.readyForFineTuning ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${stats?.training?.readyForFineTuning ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}` }}>
+            <div style={{ marginTop: 8, padding: '12px', borderRadius: 10, background: stats?.training?.readyForFineTuning ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${stats?.training?.readyForFineTuning ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}` }}>
               <p style={{ fontSize: '0.8rem', color: stats?.training?.readyForFineTuning ? '#10b981' : '#f59e0b', fontWeight: 600 }}>
                 {stats?.training?.message || 'Calculando...'}
               </p>
@@ -128,13 +128,21 @@ export default function AdminDashboard() {
   )
 }
 
-function KPICard({ label, value, icon, color, change }: { label: string; value: string | number; icon: string; color: string; change: string }) {
+interface KPICardProps {
+  label: string
+  value: string | number
+  icon: LucideIcon
+  color: string
+  change: string
+}
+
+function KPICard({ label, value, icon: Icon, color, change }: KPICardProps) {
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: color, opacity: 0.6 }} />
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 500 }}>{label}</span>
-        <span style={{ fontSize: 18 }}>{icon}</span>
+        <Icon size={20} color={color} />
       </div>
       <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em', marginBottom: 6, fontFamily: 'var(--font-body)' }}>{value}</div>
       <div style={{ fontSize: '0.72rem', color: color, fontWeight: 500 }}>{change}</div>
