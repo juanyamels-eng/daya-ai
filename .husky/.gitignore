@@ -1,0 +1,7 @@
+.secrets.baseline
+dist/
+node_modules/
+.env
+.env.local
+*.log
+coverage/
