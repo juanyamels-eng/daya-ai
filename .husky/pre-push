@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -e
+
+echo "🧪 Running tests before commit..."
+
+# Run backend tests
+echo "Testing backend..."
+cd backend && npm run test -- --run --passWithNoTests
+
+echo "✅ All tests passed!"
