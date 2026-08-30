@@ -1,1 +1,21 @@
+#!/usr/bin/env bash
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+# 1. Run lint-staged (eslint + tsc on changed files)
+echo "📝 Checking code style and types..."
 npx lint-staged
+
+# 2. Secrets scanning
+echo "🔐 Scanning for exposed secrets..."
+npx detect-secrets scan --baseline .secrets.baseline || {
+  echo "⚠️  Secrets scan failed. Review changes for exposed credentials."
+  exit 1
+}
+
+# 3. Type check entire project (critical catch)
+echo "✅ Type checking backend..."
+cd backend && npx tsc --noEmit
+
+echo "✅ Pre-commit checks passed!"
