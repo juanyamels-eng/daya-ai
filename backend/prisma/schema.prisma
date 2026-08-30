@@ -1,4 +1,4 @@
-// DAYA IA - Database Schema
+// DAYA IA - Database Schema (Optimized with performance indexes)
 generator client {
   provider = "prisma-client-js"
 }
@@ -44,6 +44,12 @@ model User {
   designs         Design[]
   brandKit        BrandKit?
   whatsappLink    WhatsAppLink?
+
+  // OPTIMIZATION: indexes for common queries (Phase 1: High Impact)
+  @@index([email])
+  @@index([plan])
+  @@index([createdAt(sort: Desc)])
+  @@index([planExpiresAt]) // para queries de suscripciones vencidas
 }
 
 model UserProfile {
@@ -53,9 +59,9 @@ model UserProfile {
   profession     String?
   interests      String[]
   language       String   @default("es")
-  aiPersona      String   @default("daya") // nombre de la IA personal asignada
-  tone           String? // estilo de respuesta: formal, neutral, casual
-  responseLength String? // brief, balanced, detailed
+  aiPersona      String   @default("daya")
+  tone           String?
+  responseLength String?
   avatarUrl      String?
   updatedAt      DateTime @updatedAt
 }
@@ -75,6 +81,8 @@ model Conversation {
 
   @@index([userId, updatedAt(sort: Desc)]) // lista de chats por usuario, más reciente primero
   @@index([userId, pinned]) // filtro de conversaciones fijadas
+  @@index([userId, createdAt(sort: Desc)]) // timeline de conversaciones
+  @@index([userId]) // queries simples por usuario
 }
 
 // Conversación publicada por enlace: cualquiera con el slug la LEE, sin cuenta y
@@ -90,6 +98,7 @@ model SharedConversation {
   createdAt      DateTime     @default(now())
 
   @@index([userId])
+  @@index([slug])
 }
 
 model Message {
@@ -102,7 +111,8 @@ model Message {
   tokens         Int?
   createdAt      DateTime     @default(now())
 
-  @@index([conversationId, createdAt]) // historial de mensajes por conversación (la query más frecuente)
+  @@index([conversationId, createdAt(sort: Desc)]) // historial ordenado por conversación (query más frecuente)
+  @@index([conversationId]) // búsquedas simples
 }
 
 model Memory {
@@ -114,15 +124,15 @@ model Memory {
   embedding Float[] // vector para búsqueda semántica (pgvector en producción)
   createdAt DateTime @default(now())
 
-  @@index([userId])
-  @@index([category])
+  @@index([userId, category]) // compound index para filtros combinados (más usado)
+  @@index([userId]) // queries por usuario
+  @@index([category]) // queries por categoría
+  @@index([createdAt(sort: Desc)]) // ordenamiento temporal
 }
 
 enum Plan {
   FREE
-  BETA
   PRO
-  TEAM
 }
 
 enum ChatMode {
@@ -152,6 +162,8 @@ model WhatsAppLink {
   updatedAt   DateTime  @updatedAt
 
   @@index([phone])
+  @@index([userId])
+  @@index([verified])
 }
 
 // ============================================
@@ -170,9 +182,9 @@ model TrainingData {
   usedInTraining Boolean  @default(false)
   createdAt      DateTime @default(now())
 
-  @@index([userId])
+  @@index([userId, usedInTraining]) // query de datos pendientes de entrenamiento (alta prioridad)
   @@index([category])
-  @@index([usedInTraining])
+  @@index([createdAt(sort: Desc)])
 }
 
 model DayaInsight {
@@ -181,8 +193,8 @@ model DayaInsight {
   data String // JSON con los datos del insight
   date DateTime @default(now())
 
-  @@index([type])
-  @@index([date])
+  @@index([type, date(sort: Desc)]) // compound para insights recientes por tipo
+  @@index([date(sort: Desc)])
 }
 
 model DayaSystemConfig {
@@ -203,8 +215,9 @@ model LibraryDocument {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId, category]) // búsqueda combinada
   @@index([userId])
-  @@index([category])
+  @@index([createdAt(sort: Desc)])
 }
 
 // ============================================
@@ -219,12 +232,16 @@ model Notebook {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  sources NotebookSource[]
+
+  @@index([userId, updatedAt(sort: Desc)])
   @@index([userId])
 }
 
 model NotebookSource {
   id         String   @id @default(uuid())
   notebookId String
+  notebook   Notebook @relation(fields: [notebookId], references: [id], onDelete: Cascade)
   userId     String
   type       String // document (Biblioteca) | url | text
   title      String
@@ -250,6 +267,8 @@ model Note {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId, pinned]) // notas fijadas
+  @@index([userId, updatedAt(sort: Desc)])
   @@index([userId])
 }
 
@@ -263,7 +282,9 @@ model Task {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  @@index([userId])
+  @@index([userId, done]) // tareas pendientes del usuario
+  @@index([userId, dueDate]) // tareas por fecha
+  @@index([userId, updatedAt(sort: Desc)])
 }
 
 // ============================================
@@ -282,7 +303,9 @@ model CalendarEvent {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  @@index([userId, start]) // eventos por usuario en rango de tiempo
   @@index([userId])
+  @@index([start(sort: Asc)])
 }
 
 // ============================================
@@ -325,6 +348,8 @@ model Organization {
   settings OrgSettings?
 
   @@index([slug])
+  @@index([ownerId])
+  @@index([plan])
 }
 
 model OrgSettings {
@@ -359,7 +384,8 @@ model Meeting {
   transcripts MeetingTranscript[]
   actionItems MeetingActionItem[]
 
-  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, updatedAt(sort: Desc)])
   @@index([status])
 }
 
@@ -374,6 +400,7 @@ model MeetingTranscript {
   createdAt  DateTime @default(now())
 
   @@index([meetingId, timestamp])
+  @@index([meetingId])
 }
 
 model MeetingActionItem {
@@ -385,6 +412,7 @@ model MeetingActionItem {
   assignee  String?
   createdAt DateTime @default(now())
 
+  @@index([meetingId, status])
   @@index([meetingId])
 }
 
@@ -404,8 +432,8 @@ model SlackIntegration {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([userId, isActive])
   @@index([teamId])
-  @@index([userId])
 }
 
 // SSO Tokens for login flow
@@ -418,7 +446,7 @@ model SsoToken {
   expires   DateTime
   createdAt DateTime @default(now())
 
-  @@index([userId])
+  @@index([userId, used])
   @@index([expires])
 }
 
@@ -435,8 +463,9 @@ model AuditLog {
   userAgent  String?
   createdAt  DateTime @default(now())
 
-  @@index([orgId, createdAt])
-  @@index([userId, createdAt])
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }
 
 // Analytics data for BI dashboard
@@ -448,9 +477,9 @@ model AnalyticsEvent {
   metadata  Json?
   createdAt DateTime @default(now())
 
-  @@index([eventType, createdAt])
-  @@index([orgId, createdAt])
-  @@index([userId])
+  @@index([eventType, createdAt(sort: Desc)])
+  @@index([orgId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model DailyMetric {
@@ -463,6 +492,8 @@ model DailyMetric {
   revenue      Float    @default(0)
   churnRate    Float    @default(0)
   createdAt    DateTime @default(now())
+
+  @@index([date(sort: Desc)])
 }
 
 // ============================================
@@ -483,6 +514,7 @@ model AiAgent {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  @@index([userId, isPublished])
   @@index([userId])
 }
 
@@ -509,6 +541,7 @@ model Membership {
 
   @@unique([orgId, userId])
   @@index([userId])
+  @@index([orgId])
 }
 
 model TeamMember {
@@ -519,6 +552,7 @@ model TeamMember {
   role   TeamRole @default(MEMBER)
 
   @@unique([teamId, userId])
+  @@index([teamId])
 }
 
 model WorkspaceProject {
@@ -534,6 +568,7 @@ model WorkspaceProject {
   teams TeamProject[]
   tasks WorkspaceTask[]
 
+  @@index([orgId, status])
   @@index([orgId])
 }
 
@@ -545,6 +580,7 @@ model TeamProject {
   project   WorkspaceProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, projectId])
+  @@index([teamId])
 }
 
 model WorkspaceTask {
@@ -560,9 +596,9 @@ model WorkspaceTask {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  @@index([projectId])
-  @@index([status])
+  @@index([projectId, status])
   @@index([assigneeId])
+  @@index([projectId])
 }
 
 enum OrgRole {
@@ -656,7 +692,8 @@ model MarketplacePurchase {
   createdAt       DateTime        @default(now())
 
   @@unique([itemId, userId])
-  @@index([userId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([itemId])
 }
 
 model MarketplaceDependency {
@@ -707,6 +744,7 @@ model CollaborationSession {
   participants CollaborationParticipant[]
 
   @@unique([documentType, documentId])
+  @@index([ownerId])
 }
 
 model CollaborationParticipant {
@@ -719,6 +757,7 @@ model CollaborationParticipant {
   joinedAt  DateTime             @default(now())
 
   @@unique([sessionId, userId])
+  @@index([sessionId])
 }
 
 // ============================================
@@ -735,6 +774,7 @@ model DocChunk {
   embedding Float[] // pgvector en producción
   createdAt DateTime @default(now())
 
+  @@index([userId, docId])
   @@index([userId])
 }
 
@@ -765,6 +805,7 @@ model PromptPreset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([userId, updatedAt(sort: Desc)])
   @@index([userId])
 }
 
@@ -782,6 +823,7 @@ model GeneratedImage {
   messageId String? // ID del mensaje en el chat (para restaurar en la vista)
   createdAt DateTime @default(now())
 
+  @@index([userId, createdAt(sort: Desc)])
   @@index([userId])
 }
 
@@ -801,7 +843,9 @@ model GeneratedVideo {
   messageId    String?
   createdAt    DateTime @default(now())
 
-  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
 }
 
 // Kit de marca del usuario (Studio): colores, fuentes y logo para diseños
@@ -835,8 +879,9 @@ model Design {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
-  @@index([userId])
-  @@index([isTemplate])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, isTemplate])
+  @@index([shareToken])
 }
 
 // Comentario de feedback sobre un diseño. Lo puede dejar el dueño (autenticado)
@@ -852,7 +897,8 @@ model DesignComment {
   isOwner   Boolean  @default(false) // lo dejó el dueño desde el editor
   createdAt DateTime @default(now())
 
-  @@index([designId, createdAt])
+  @@index([designId, createdAt(sort: Desc)])
+  @@index([designId])
 }
 
 // Snapshot del historial de versiones de un diseño (máx. 15 por diseño,
@@ -866,5 +912,6 @@ model DesignVersion {
   thumbnail String?
   createdAt DateTime @default(now())
 
-  @@index([designId, createdAt])
+  @@index([designId, createdAt(sort: Desc)])
+  @@index([designId])
 }
