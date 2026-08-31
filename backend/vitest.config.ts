@@ -6,12 +6,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       thresholds: {
-        // Ratchet Fase 1: apenas por debajo del baseline medido (12/6.3/13.2/13.6).
-        // La deuda solo puede bajar; subir estos números es part del roadmap.
-        statements: 11,
-        branches: 5,
-        functions: 12,
-        lines: 12,
+        // Ratchet Fase 2: sube el piso al medido actual (22.17/15.04/20.17/24.59)
+        // con ~2 puntos de margen. La deuda solo puede bajar.
+        statements: 20,
+        branches: 13,
+        functions: 18,
+        lines: 22,
       },
     },
   },
