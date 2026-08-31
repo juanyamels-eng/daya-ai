@@ -18,7 +18,7 @@
     "db:studio": "prisma studio",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src/ --max-warnings 460",
+    "lint": "eslint src/ --max-warnings 450",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
     "prepare": "husky install"

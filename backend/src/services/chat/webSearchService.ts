@@ -1,4 +1,4 @@
-import { Request, Response } from 'express'
+import { Response } from 'express'
 import { searchAndRank } from '../../features/searchrank/ranking'
 
 export interface WebSearchResult {
@@ -38,8 +38,8 @@ export async function executeWebSearch(
   webMode: boolean,
   systemPrompt: string,
   userId: string,
-  res: Response,
-  clientGoneRef: { current: boolean }
+  _res: Response,
+  _clientGoneRef: { current: boolean }
 ): Promise<WebSearchResult> {
   const webSearchTriggered = !webMode && needsWebSearch(message)
   const forced = webMode === true

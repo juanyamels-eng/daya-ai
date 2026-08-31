@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma'
 import { PLANS } from '../../config/plans'
-import { resolveEffectivePlan, resetUsageIfDue, consumeQuota, refundQuota } from '../quota'
+import { resolveEffectivePlan, resetUsageIfDue } from '../quota'
 import { checkGlobalBudget } from '../monitoring'
 
 export interface QuotaCheckResult {

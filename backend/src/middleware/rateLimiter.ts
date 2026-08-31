@@ -23,7 +23,7 @@ export const authLimiter = rateLimit({
   // En producción, bloquear por IP + user agent para evitar evasión
   keyGenerator: (req: Request) => `${req.ip}:${req.get('user-agent') || 'unknown'}`,
   // Deshabilitar en tests
-  skip: (req) => process.env.NODE_ENV === 'test',
+  skip: () => process.env.NODE_ENV === 'test',
 })
 
 // Límite para operaciones costosas (generar documentos, investigación profunda).
@@ -44,7 +44,7 @@ export const paymentsLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => (typeof req.userId === 'string' && req.userId) ? req.userId : (req.ip || 'anon'),
-  skip: (req) => process.env.NODE_ENV === 'test',
+  skip: () => process.env.NODE_ENV === 'test',
 })
 
 // CANDADO ANTI-BOTS: límite de mensajes por MINUTO por usuario.
@@ -55,7 +55,7 @@ export const chatBurstLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => (typeof req.userId === 'string' && req.userId) ? req.userId : (req.ip || 'anon'),
-  skip: (req) => process.env.NODE_ENV === 'test',
+  skip: () => process.env.NODE_ENV === 'test',
 })
 
 // Límite para endpoints de administración
@@ -66,7 +66,7 @@ export const adminLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => (typeof req.userId === 'string' && req.userId) ? req.userId : (req.ip || 'anon'),
-  skip: (req) => process.env.NODE_ENV === 'test',
+  skip: () => process.env.NODE_ENV === 'test',
 })
 
 // Límite para webhooks (más permisivo para permitir reintentos de proveedores)

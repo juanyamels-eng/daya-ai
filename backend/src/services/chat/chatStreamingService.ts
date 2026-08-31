@@ -1,7 +1,6 @@
 import { Request, Response } from 'express'
-import { chatStream, chatChainStream, chatSingle, ChatMessage } from '../../services/openrouter'
+import { chatStream, chatChainStream } from '../../services/openrouter'
 import { selectChain } from '../../services/modelSelector'
-import { buildSystemPrompt } from '../../services/memory'
 import { cleanFallbackTitle, generateSmartTitle } from '../../controllers/chatController'
 import { prisma } from '../../lib/prisma'
 
@@ -164,7 +163,7 @@ export async function saveResponse(
   result: StreamingResult,
   bestModel: string
 ): Promise<void> {
-  const { conversationId, fullResponse, streamFailed, regenOldAssistantId, userId, message, isFirstExchange } = result
+  const { conversationId, fullResponse, streamFailed, regenOldAssistantId, userId, message } = result
 
   if (!streamFailed) {
     if (regenOldAssistantId) {

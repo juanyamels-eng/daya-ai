@@ -10,8 +10,12 @@
 
 import { logger } from '../../services/logger'
 
+type ChatMessage = { role: string; content: string }
+// El input de un modelo: un string, una lista de mensajes, o un objeto con parámetros.
+type ModelInput = string | ChatMessage[] | Record<string, unknown>
+
 interface CachedResponse {
-  data: any
+  data: unknown
   timestamp: number
   ttl: number
 }
@@ -46,15 +50,15 @@ export class ModelCache {
    * Generate hash key for cache lookup
    * Combines model, input tokens, and model parameters
    */
-  private hashKey(model: string, input: any): string {
+  private hashKey(model: string, input: ModelInput): string {
+    const obj = typeof input === 'object' && input !== null && !Array.isArray(input) ? input : undefined
     const normalized = {
       model,
       input: typeof input === 'string' ? input : JSON.stringify(input),
-      // Include key parameters in hash
-      temperature: input?.temperature ?? 0.7,
-      maxTokens: input?.maxTokens ?? 2000,
+      temperature: obj && typeof obj.temperature === 'number' ? obj.temperature : 0.7,
+      maxTokens: obj && typeof obj.maxTokens === 'number' ? obj.maxTokens : 2000,
     }
-    
+
     // Simple hash: model + first 100 chars of input
     const inputStr = normalized.input.substring(0, 100)
     return `${normalized.model}:${inputStr}`.substring(0, 256)
@@ -63,7 +67,7 @@ export class ModelCache {
   /**
    * Get cached response if valid
    */
-  get(model: string, input: any): any | null {
+  get(model: string, input: ModelInput): unknown | null {
     const key = this.hashKey(model, input)
     const cached = this.cache.get(key)
 
@@ -87,7 +91,7 @@ export class ModelCache {
   /**
    * Cache a response
    */
-  set(model: string, input: any, data: any, ttl?: number): void {
+  set(model: string, input: ModelInput, data: unknown, ttl?: number): void {
     const key = this.hashKey(model, input)
     
     // Evict oldest entry if cache is full
@@ -186,10 +190,10 @@ export class OpenRouterClient {
   /**
    * Call OpenRouter API with caching
    */
-  async call(model: string, input: any, options?: { 
+  async call(model: string, input: ModelInput, options?: { 
     skipCache?: boolean
     ttl?: number
-  }): Promise<any> {
+  }): Promise<unknown> {
     const { skipCache = false, ttl } = options || {}
 
     // Check cache first
@@ -225,7 +229,7 @@ export class OpenRouterClient {
   /**
    * Internal method to make actual API request
    */
-  private async makeRequest(model: string, input: any): Promise<any> {
+  private async makeRequest(model: string, input: ModelInput): Promise<unknown> {
     const response = await fetch(`${this.apiUrl}/chat/completions`, {
       method: 'POST',
       headers: {

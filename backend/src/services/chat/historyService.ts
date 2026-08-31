@@ -1,6 +1,5 @@
 import { prisma } from '../../lib/prisma'
 import { chatSingle } from '../../services/openrouter'
-import { cleanFallbackTitle } from '../../controllers/chatController'
 
 export interface HistoryItem {
   id?: string

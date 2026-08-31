@@ -1,5 +1,4 @@
-import { Request, Response } from 'express'
-import { gatherToolContext } from '../../features/agent/agent'
+import { Response } from 'express'
 
 export interface ToolContextResult {
   context: string

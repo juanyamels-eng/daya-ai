@@ -2,17 +2,17 @@ import { Request, Response } from 'express'
 import multer from 'multer'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../lib/prisma'
-import { chatStream, chatSingle, chatChainStream } from '../services/openrouter'
+import { chatSingle } from '../services/openrouter'
 import { buildSystemPrompt } from '../services/memory'
-import { selectBestModel, selectChain, classifyMessage } from '../services/modelSelector'
+import { selectBestModel, classifyMessage } from '../services/modelSelector'
 import { getCheapModel } from '../services/modelCatalog'
 import type { PlanId } from '../config/plans'
 import { detectImageRequest, handleImageFallback } from '../services/chat/imageService'
-import { needsWebSearch, executeWebSearch, formatSourcesBlock } from '../services/chat/webSearchService'
-import { executeTools, formatToolsLine } from '../services/chat/toolExecutor'
-import { checkAndReserveQuota, refundMessageQuota, handleSearchQuota, refundSearchQuota } from '../services/chat/quotaService'
-import { getOrCreateConversation, saveUserMessage, handleRegeneration, buildHistoryMessages, updateConversationTitle, touchConversation } from '../services/chat/historyService'
-import { setupSSEHeaders, createClientGoneHandler, sendConversationId, sendModelInfo, processStream, saveResponse } from '../services/chat/chatStreamingService'
+import { executeWebSearch } from '../services/chat/webSearchService'
+import { executeTools } from '../services/chat/toolExecutor'
+import { checkAndReserveQuota } from '../services/chat/quotaService'
+import { getOrCreateConversation, saveUserMessage, handleRegeneration, buildHistoryMessages, touchConversation } from '../services/chat/historyService'
+import { setupSSEHeaders, createClientGoneHandler, sendConversationId, processStream, saveResponse } from '../services/chat/chatStreamingService'
 import { runDeepResearch, isWebSearchConfigured } from '../services/deepResearch'
 import { transcribeAudio as transcribeAudioFn, isTranscriptionConfigured } from '../services/transcription'
 import { buildProfessionalHTML } from '../services/documents/pdfGenerator'
@@ -125,7 +125,6 @@ Sé exhaustivo donde importe y conciso donde no.
 export const sendMessage = async (req: Request, res: Response) => {
   const userId = req.userId
   const { message, conversationId, imageData, regenerate, webMode, thinkLevel } = req.body
-  const think: 'fast' | 'normal' | 'deep' = (thinkLevel === 'fast' || thinkLevel === 'deep') ? thinkLevel : 'normal'
 
   if (!message?.trim()) return res.status(400).json({ error: 'Mensaje requerido' })
   if (message.length > 8000) return res.status(400).json({ error: 'El mensaje es demasiado largo (máximo 8000 caracteres).' })
@@ -140,8 +139,6 @@ export const sendMessage = async (req: Request, res: Response) => {
     // === QUOTA CHECK & RESERVATION ===
     const quotaResult = await checkAndReserveQuota(userId)
     if (!quotaResult.ok) return res.status(quotaResult.status || 429).json({ error: quotaResult.error })
-
-    const { periodTxt, planCfg, effectivePlan } = quotaResult
 
     // === CONVERSATION ===
     const { conversation, isFirstExchange } = await getOrCreateConversation(userId, conversationId)

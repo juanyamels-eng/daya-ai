@@ -3,11 +3,6 @@
 // the CSP header. Inline scripts/styles must include this nonce to execute.
 
 import { Request, Response, NextFunction } from 'express'
-import nodeCrypto from 'crypto'
-
-interface CspRequest extends Request {
-  cspNonce: string
-}
 
 /**
  * Generates a CSP nonce and attaches it to the request.
