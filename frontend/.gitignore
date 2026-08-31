@@ -6,4 +6,6 @@
 .next/
 node_modules/
 out/
+storybook-static/
+coverage/
 tsconfig.tsbuildinfo
