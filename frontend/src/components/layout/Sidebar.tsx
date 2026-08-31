@@ -469,7 +469,7 @@ export default function Sidebar() {
                     600. A 32 px y en 800 el wordmark pesaba mÃ¡s aquÃ­ que en la
                     portada, y es lo primero que se lee. */}
                 <img src="/logo.png" alt="Daya" style={{ width: 26, height: 26, objectFit: 'contain', filter: 'var(--logo-filter)' }} />
-                <div style={{ fontWeight: 600, fontSize: '0.98rem', color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>Daya</div>
+                <div style={{ fontWeight: 650, fontSize: '0.98rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Daya</div>
               </div>
               <button onClick={() => isMobile ? setMobileOpen(false) : setCollapsed(c => !c)} style={{ ...iconBtn, width: 34, height: 34 }} title={isMobile ? 'Cerrar menÃº' : 'Colapsar panel (Ctrl+B)'}><PanelIcon /></button>
             </div>

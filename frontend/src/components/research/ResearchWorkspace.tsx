@@ -152,7 +152,7 @@ export default function ResearchWorkspace() {
         {/* Header + input */}
         <div style={{ padding: '24px 32px 20px', borderBottom: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>Investigación</span>
+            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>Investigación</span>
             <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '3px 9px', borderRadius: 20, background: 'var(--bg-elevated)', color: 'var(--text-tertiary)', border: '1px solid var(--border-default)' }}>Deep Research</span>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>

@@ -1,9 +1,7 @@
-/* Fuentes cargadas vía next/font en layout.tsx (Inter + Instrument Serif).
-   Para cambiar la sans-serif a Satoshi (Fontshare):
-   1. Elimina el import de Inter en layout.tsx
-   2. Añade: import localFont from 'next/font/local' y carga Satoshi desde /public/fonts/
-      O usa: @import url('https://api.fontshare.com/v2/css?f[]=satoshi@400,600,700,800&display=swap') aquí
-   3. Cambia --font-body a: 'Satoshi', system-ui, sans-serif */
+/* Fuentes cargadas vía next/font en layout.tsx (Inter + Instrument Serif + IBM Plex Mono).
+   Cuerpo y títulos: Inter (sans). Código/etiquetas: IBM Plex Mono.
+   Para añadir una sans nueva (p. ej. Satoshi de Fontshare), cambia --font-body/--font-display
+   en :root o carga la fuente en layout.tsx. */
 
 @tailwind base;
 @tailwind components;
@@ -74,18 +72,16 @@ a[style*="accent-500"] {
 }
 
 :root {
-  /* UNA sola voz en todo el producto: la monoespaciada de marca (IBM Plex Mono),
-     la misma de la landing. Antes la portada hablaba en mono y la app en Inter,
-     así que entrar era cambiar de producto.
-
-     OJO al calibrar: la mono es ~20% más ancha por carácter. Por eso el cuerpo
-     base baja a 15.5px y los titulares aprietan el tracking (ver más abajo); con
-     los valores de Inter, los títulos largos se desmontan. */
-  --font-body: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --font-display: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Tipografía de producto (modo "gran empresa": Stripe, Linear, Vercel).
+     El CUERPO y los TÍTULOS van en Inter (sans): la lectura prolongada y los
+     encabezados ganan silueta y legibilidad. La monoespaciada de marca (IBM Plex
+     Mono) queda reservada para lo técnico: código, etiquetas, números, timestamps
+     y micro-labels en mayúsculas — el guiño "ingenieril" sin cansar al leer. */
+  --font-body: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: var(--font-plex), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  /* Se conserva la sans cargada para lo que necesite ancho variable de verdad. */
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  /* Alias de sans: idéntico al cuerpo, disponible para lo que quiera ancho variable. */
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Claro nítido con matiz lavanda: blanco casi puro + superficies con sesgo violeta
      (elegidas, no un gris frío) y el mismo violeta de marca que el modo oscuro. */
@@ -102,6 +98,12 @@ a[style*="accent-500"] {
   /* Mismo violeta de marca; en claro se oscurece un punto para que el filo se
      lea sobre blanco. */
   --brand: #5a49d6;
+
+  /* Violeta "brillante" de marca, constante en ambos temas. Es la base de los
+     resplandores/auroras (landing, auth, cuadernos): con --brand-rgb se puede
+     usar en rgba() sin repetir el hex en cada superficie. */
+  --brand-rgb: 109, 92, 255;
+  --brand-bright: #6d5cff;
 
   --text-primary:   #14131c;
   --text-secondary: #45414f;
@@ -121,22 +123,47 @@ a[style*="accent-500"] {
   --shadow-lg: 0 12px 40px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.06);
 
   --logo-filter: none;
+
+  /* ============================================
+     Escala de diseño (una sola fuente de verdad)
+     Espaciado y radio en una escala 4px. Los componentes deberían usar ESTOS
+     valores (no números sueltos) para que el ritmo sea consistente en toda la
+     app. Se exponen como variables para que las primitivas (Button/Card/Input)
+     y el CSS futuro las referencien.
+     ============================================ */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-5: 20px; --space-6: 24px;
+  --space-8: 32px; --space-10: 40px; --space-12: 48px;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-full: 999px;
 }
 
-/* Los titulares, calibrados para la mono: peso firme y tracking MUY apretado
-   (-0.045em, el de la landing). A -0.02em, con una fuente un 20% más ancha por
-   carácter, un título de dos líneas se desmonta. !important porque compite con
-   el font-weight que esos estilos inline traen de cuando eran serif. */
+/* Transición de tema: el cambio claro/oscuro funde el fondo y el texto en vez
+   de pegar el salto. Respeta prefers-reduced-motion. Solo body (barato): las
+   superficies internas ya tienen sus propias transiciones. */
+body { transition: background-color 0.25s ease, color 0.25s ease; }
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+}
+
+/* Los titulares, calibrados para la sans: peso semibold y tracking apretado pero
+   no excesivo (-0.025em, el de Linear/Stripe). !important porque compite con el
+   font-weight que esos estilos inline traen de cuando eran mono/serif. */
 [style*="--font-display"] {
-  font-weight: 600 !important;
-  letter-spacing: -0.045em !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.025em !important;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-/* 15.5px en vez de los 16 del navegador: compensa que la mono ocupa más ancho
-   por carácter, así que todas las medidas en rem de la app encogen a la vez y
-   las líneas siguen cabiendo donde cabían. */
-html { scroll-behavior: smooth; font-size: 15.5px; }
+/* 16px (estándar). Antes 15.5px compensaba que la mono ocupa ~20% más ancho por
+   carácter; con el cuerpo en sans ya no hace falta. Todas las medidas en rem de
+   la app vuelven a su tamaño natural. */
+html { scroll-behavior: smooth; font-size: 16px; }
 html, body { overflow-x: hidden; max-width: 100%; }
 body {
   font-family: var(--font-body);
@@ -148,6 +175,7 @@ body {
   -webkit-tap-highlight-color: transparent;
   line-height: 1.6;
   font-size: 16px;
+  letter-spacing: -0.006em;
 }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 button, input, textarea, select, optgroup { font-family: inherit; }
@@ -376,12 +404,9 @@ html.dark .daya-glass {
 /* ============================================
    Prose — texto legible para respuestas Daya
    ============================================ */
-/* La ÚNICA excepción a la monoespaciada: el texto de las respuestas va en Inter.
-   La app entera habla en mono porque es la voz de la marca, pero una respuesta
-   larga se lee de arriba abajo durante minutos, y ahí la mono cansa: todos los
-   caracteres ocupan lo mismo, así que las palabras pierden silueta y el ojo deja
-   de reconocerlas de un vistazo. En un rótulo eso es carácter; en tres párrafos
-   es fatiga. El código de dentro sigue en mono, como debe ser (ver abajo). */
+/* El cuerpo ya va en Inter en todo el producto. Aquí se afina la respuesta larga
+   del chat: interlineado más alto y tamaño cómodo para leer varios párrafos. El
+   código de dentro sigue en mono, como debe ser (ver abajo). */
 .prose-daya {
   font-family: var(--font-sans);
   font-size: 0.98rem;
@@ -459,6 +484,10 @@ button {
 }
 button:active { transform: scale(0.96); }
 
+/* Enlaces: transición de color base para que cualquier hover sea fluido (las
+   que traen `transition` inline ya tienen prioridad, así que esto no pisa nada). */
+a { transition: color 0.15s ease, opacity 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
+
 /* ============================================
    Markdown renderizado (Editor, vistas previas)
    ============================================ */
@@ -484,7 +513,7 @@ button:active { transform: scale(0.96); }
   color: var(--text-secondary); background: var(--bg-surface); border-radius: 0 8px 8px 0;
 }
 .markdown-body code {
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.86em;
+  font-family: var(--font-mono); font-size: 0.86em;
   background: var(--bg-elevated); padding: 0.15em 0.4em; border-radius: 5px;
 }
 .markdown-body pre {

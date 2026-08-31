@@ -51,7 +51,7 @@ export function AuthStyles() {
            desplazarse. Las capas de fondo ya se recortan solas. */
         position: relative; min-height: 100dvh; display: flex; overflow-x: hidden;
         background: var(--lxa-bg); color: var(--lxa-text);
-        font-family: var(--font-mono, ui-monospace, monospace);
+        font-family: var(--font-sans, system-ui, sans-serif);
         -webkit-font-smoothing: antialiased;
       }
 
@@ -73,10 +73,10 @@ export function AuthStyles() {
       .lxa-aurora::before, .lxa-aurora::after {
         content: ''; position: absolute; width: 46vw; height: 46vw; border-radius: 50%; will-change: transform; }
       .lxa-aurora::before { top: -12vw; left: -6vw;
-        background: radial-gradient(circle, rgba(109,92,255,0.06), transparent 68%);
+        background: radial-gradient(circle, rgba(var(--brand-rgb),0.06), transparent 68%);
         animation: lxaFloatA 34s ease-in-out infinite; }
       .lxa-aurora::after { bottom: -16vw; right: -8vw;
-        background: radial-gradient(circle, rgba(109,92,255,0.045), transparent 68%);
+        background: radial-gradient(circle, rgba(var(--brand-rgb),0.045), transparent 68%);
         animation: lxaFloatB 44s ease-in-out infinite; }
       @keyframes lxaFloatA { 0%, 100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(9vw,7vw,0) scale(1.14); } }
       @keyframes lxaFloatB { 0%, 100% { transform: translate3d(0,0,0) scale(1.1); } 50% { transform: translate3d(-11vw,-6vw,0) scale(1); } }
@@ -103,7 +103,7 @@ export function AuthStyles() {
          tarjeta estrecha, no con el carril de 420. */
       .lxa-solo .lxa-topbar { max-width: 380px; }
       .lxa-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--lxa-text); }
-      .lxa-logo span { font-size: 0.98rem; font-weight: 600; letter-spacing: -0.04em; }
+      .lxa-logo span { font-size: 0.98rem; font-weight: 650; letter-spacing: -0.02em; }
       .lxa-topright { display: flex; align-items: center; gap: 8px; }
       .lxa-lang { display: inline-flex; }
       .lxa-navlink { display: inline-flex; align-items: center; padding: 9px 14px; border-radius: 999px;
@@ -132,15 +132,15 @@ export function AuthStyles() {
       .lxa-submit:disabled { background: var(--lxa-card); color: var(--lxa-text-3); cursor: not-allowed; }
 
       /* ── Cabecera del formulario ── */
-      .lxa-h1 { margin: 0 0 10px; color: #f8f9fa; font-weight: 600;
-        font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.1; letter-spacing: -0.05em; text-wrap: balance; }
+      .lxa-h1 { margin: 0 0 10px; color: #f8f9fa; font-weight: 650;
+        font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.1; letter-spacing: -0.03em; text-wrap: balance; }
       .lxa-h1--sm { font-size: clamp(1.5rem, 2.6vw, 1.95rem); }
       .lxa-lead { margin: 0 0 28px; color: var(--lxa-text-2); font-size: 0.88rem; line-height: 1.6; }
 
       /* ── Divisor ── */
       .lxa-divider { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; color: var(--lxa-text-3); }
       .lxa-divider::before, .lxa-divider::after { content: ''; flex: 1; height: 1px; background: var(--lxa-border); }
-      .lxa-divider span { font-size: 0.64rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+      .lxa-divider span { font-size: 0.64rem; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; font-family: var(--font-mono, ui-monospace, monospace); }
 
       /* ── Campos ── */
       .lxa-fields { display: flex; flex-direction: column; gap: 16px; }
@@ -230,11 +230,11 @@ export function AuthStyles() {
       /* ── Panel de marca del registro: el plan gratis, en tarjeta plana ── */
       .lxa-brand--pitch { align-items: center; justify-content: center; padding: 56px 60px; }
       .lxa-pitch { width: 100%; max-width: 420px; }
-      .lxa-pitch-h2 { margin: 0 0 26px; color: #f8f9fa; font-weight: 600;
-        font-size: clamp(1.7rem, 2.9vw, 2.4rem); line-height: 1.12; letter-spacing: -0.05em; text-wrap: balance; }
+      .lxa-pitch-h2 { margin: 0 0 26px; color: #f8f9fa; font-weight: 650;
+        font-size: clamp(1.7rem, 2.9vw, 2.4rem); line-height: 1.12; letter-spacing: -0.03em; text-wrap: balance; }
       .lxa-pitch-h2 em { font-style: normal; color: var(--lxa-text-3); }
       .lxa-pitch-tag { margin: 0 0 14px; color: var(--lxa-text-3); font-size: 0.66rem;
-        font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+        font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; font-family: var(--font-mono, ui-monospace, monospace); }
       .lxa-pitch-list { list-style: none; margin: 0; padding: 4px 22px; border-radius: 16px; background: var(--lxa-card); }
       .lxa-pitch-list li { display: flex; align-items: flex-start; gap: 12px; padding: 13px 0;
         border-top: 1px solid var(--lxa-border); color: var(--lxa-text-2); font-size: 0.84rem; line-height: 1.55; }

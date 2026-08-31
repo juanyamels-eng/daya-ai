@@ -199,7 +199,7 @@ export default function AutomationsWorkspace() {
     <div className="daya-page" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-base)' }}>
       {/* Header */}
       <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>Automatizaciones</span>
+        <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>Automatizaciones</span>
         <div style={{ display: 'flex', gap: 6 }}>
           {tabBtn('recipes', 'Mis recetas')}
           {tabBtn('templates', 'Plantillas')}

@@ -378,7 +378,7 @@ export default function NotebooksWorkspace() {
                     en la landing `--lx-grad` es #ffffff, blanco puro. El violeta
                     de marca está reservado para la aurora y para lo que marca
                     algo —una cita, lo activo—, no para pintar titulares. */}
-                <h2 style={{ fontSize: 'clamp(1.9rem, 3.2vw, 2.7rem)', fontWeight: 600, color: '#f8f9fa', margin: '0 0 18px', letterSpacing: '-0.05em', lineHeight: 1.08, textWrap: 'balance' } as React.CSSProperties}>
+                <h2 style={{ fontSize: 'clamp(1.9rem, 3.2vw, 2.7rem)', fontWeight: 650, color: '#f8f9fa', margin: '0 0 18px', letterSpacing: '-0.03em', lineHeight: 1.08, textWrap: 'balance' } as React.CSSProperties}>
                   Pregunta a tus propias fuentes
                 </h2>
                 {/* 52ch, no 40: a 40 la frase caía en tres líneas y dejaba
@@ -444,7 +444,7 @@ export default function NotebooksWorkspace() {
                   vivía dentro de la rejilla, y con la lista llena había que
                   buscarla al final de todo. */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-                <h2 style={{ fontSize: '1.6rem', fontWeight: 600, color: '#f8f9fa', margin: 0, letterSpacing: '-0.05em' }}>Tus cuadernos</h2>
+                <h2 style={{ fontSize: '1.6rem', fontWeight: 650, color: '#f8f9fa', margin: 0, letterSpacing: '-0.03em' }}>Tus cuadernos</h2>
                 <span style={{ ...kicker, paddingTop: 4 }}>{notebooks.length}</span>
                 <button onClick={createNotebook}
                   style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 999, border: 'none', background: '#f1f3f4', color: '#131314', fontSize: '0.85rem', fontWeight: 600, letterSpacing: '-0.025em', cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'filter 0.15s' }}
@@ -649,7 +649,7 @@ export default function NotebooksWorkspace() {
                   style={{ ...inputStyle, maxWidth: 360, fontWeight: 600, fontSize: '1rem' }} />
               ) : (
                 <h2 onClick={() => { setTitleDraft(active.title); setEditingTitle(true) }} title="Pulsa para renombrar"
-                  style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', cursor: 'text', letterSpacing: '-0.045em', padding: '4px 8px', margin: '0 -8px', borderRadius: 8, transition: 'background 0.15s', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  style={{ fontSize: '1.05rem', fontWeight: 650, color: 'var(--text-primary)', cursor: 'text', letterSpacing: '-0.025em', padding: '4px 8px', margin: '0 -8px', borderRadius: 8, transition: 'background 0.15s', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-elevated)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   {active.title}
@@ -777,17 +777,17 @@ export default function NotebooksWorkspace() {
         .nb-aurora::before, .nb-aurora::after {
           content: ''; position: absolute; width: 42vw; height: 42vw; border-radius: 50%; will-change: transform; }
         .nb-aurora::before { top: -14vw; left: -8vw;
-          background: radial-gradient(circle, rgba(109,92,255,0.06), transparent 68%);
+          background: radial-gradient(circle, rgba(var(--brand-rgb),0.06), transparent 68%);
           animation: nbFloatA 34s ease-in-out infinite; }
         .nb-aurora::after { bottom: -18vw; right: -10vw;
-          background: radial-gradient(circle, rgba(109,92,255,0.045), transparent 68%);
+          background: radial-gradient(circle, rgba(var(--brand-rgb),0.045), transparent 68%);
           animation: nbFloatB 44s ease-in-out infinite; }
         /* En la portada (sin cuadernos todavía) la aurora sube: ahí no compite
            con ninguna tarjeta y es lo único que da atmósfera a la pantalla. En la
            galería se queda baja, porque detrás de las portadas de color el
            violeta empezaría a ensuciar los tonos. */
-        .nb-aurora--hero::before { background: radial-gradient(circle, rgba(109,92,255,0.13), transparent 68%); }
-        .nb-aurora--hero::after  { background: radial-gradient(circle, rgba(109,92,255,0.10), transparent 68%); }
+        .nb-aurora--hero::before { background: radial-gradient(circle, rgba(var(--brand-rgb),0.13), transparent 68%); }
+        .nb-aurora--hero::after  { background: radial-gradient(circle, rgba(var(--brand-rgb),0.10), transparent 68%); }
         @keyframes nbFloatA {
           0%, 100% { transform: translate3d(0,0,0) scale(1); }
           50% { transform: translate3d(8vw,6vw,0) scale(1.14); } }

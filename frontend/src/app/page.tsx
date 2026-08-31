@@ -609,12 +609,10 @@ function LandingStyles() {
         position: relative; min-height: 100dvh; overflow-x: hidden;
         display: flex; flex-direction: column;
         background: var(--lx-bg); color: var(--lx-text);
-        /* La VOZ de la landing: monoespaciada, como opencode.ai. Da carácter de
-           herramienta de ingeniería donde un sans genérico no dice nada.
-           OJO al calibrar: la mono es ~20% más ancha por carácter, así que todo
-           lo de abajo baja de cuerpo, aprieta el tracking y sube de peso; si se
-           dejan los valores de Inter, los titulares se desmontan. */
-        font-family: var(--font-mono, ui-monospace, monospace);
+        /* La VOZ de la landing: sans limpia (Inter), la misma del producto. La
+           mono queda reservada para etiquetas técnicas y números (ver .lx-feat-tag
+           y .lx-step-n), como en Stripe/Linear. */
+        font-family: var(--font-sans, system-ui, sans-serif);
         -webkit-font-smoothing: antialiased;
       }
       .lx-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -651,10 +649,10 @@ function LandingStyles() {
         content: ''; position: absolute; width: 46vw; height: 46vw; border-radius: 50%;
         will-change: transform; }
       .lx-aurora::before { top: -12vw; left: -6vw;
-        background: radial-gradient(circle, rgba(109,92,255,0.06), transparent 68%);
+        background: radial-gradient(circle, rgba(var(--brand-rgb),0.06), transparent 68%);
         animation: lxFloatA 34s ease-in-out infinite; }
       .lx-aurora::after { bottom: -16vw; right: -8vw;
-        background: radial-gradient(circle, rgba(109,92,255,0.045), transparent 68%);
+        background: radial-gradient(circle, rgba(var(--brand-rgb),0.045), transparent 68%);
         animation: lxFloatB 44s ease-in-out infinite; }
       @keyframes lxFloatA {
         0%, 100% { transform: translate3d(0,0,0) scale(1); }
@@ -677,7 +675,7 @@ function LandingStyles() {
       .lx-nav.is-scrolled { border-bottom-color: var(--lx-border); background: rgba(19,19,20,0.9); }
       .lx-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--lx-text); }
       .lx-logo img { width: 26px; height: 26px; object-fit: contain; filter: invert(1) brightness(1.15); }
-      .lx-logo span { font-size: 0.98rem; font-weight: 600; letter-spacing: -0.04em; }
+      .lx-logo span { font-size: 0.98rem; font-weight: 650; letter-spacing: -0.02em; }
 
       .lx-nav-right { display: flex; align-items: center; gap: 8px; }
       .lx-nav-link { display: inline-flex; align-items: center; padding: 9px 14px; border-radius: 999px;
@@ -742,8 +740,8 @@ function LandingStyles() {
       /* Cabecera de sección: título grande a la izquierda, sin eyebrow en
          mayúsculas (Google no los usa: va directo al titular). */
       .lx-sec-head { max-width: 62ch; margin-bottom: clamp(28px, 4vw, 44px); }
-      .lx-sec-title { margin: 0; color: #f8f9fa; font-weight: 600;
-        font-size: clamp(1.55rem, 3vw, 2.3rem); line-height: 1.16; letter-spacing: -0.045em; text-wrap: balance; }
+      .lx-sec-title { margin: 0; color: #f8f9fa; font-weight: 650;
+        font-size: clamp(1.55rem, 3vw, 2.3rem); line-height: 1.16; letter-spacing: -0.025em; text-wrap: balance; }
       .lx-sec-lead { margin: 14px 0 0; color: var(--lx-text-2); font-size: 0.9rem; line-height: 1.72; max-width: 58ch; }
 
       /* Tarjetas planas de solo texto (patrón "Start building with Gemini API"):
@@ -754,7 +752,7 @@ function LandingStyles() {
         padding: 24px 22px 22px; border-radius: 16px; background: var(--lx-card);
         transition: background 0.18s; }
       .lx-flat:hover { background: var(--lx-card-hover); }
-      .lx-flat h3 { margin: 0; color: #f8f9fa; font-size: 0.94rem; font-weight: 600; letter-spacing: -0.03em; }
+      .lx-flat h3 { margin: 0; color: #f8f9fa; font-size: 0.94rem; font-weight: 650; letter-spacing: -0.02em; }
       .lx-flat p { margin: 0; flex: 1; color: var(--lx-text-2); font-size: 0.8rem; line-height: 1.68; }
 
 
@@ -767,11 +765,11 @@ function LandingStyles() {
         border: 1px solid transparent; transition: background 0.18s, border-color 0.18s; }
       .lx-feat:hover { background: var(--lx-card-hover); border-color: var(--lx-border); }
       .lx-feat--wide { grid-column: span 2; }
-      /* Etiqueta técnica: en mono el versalita con tracking abierto es justo lo
-         que hace que parezca la cabecera de una terminal. */
-      .lx-feat-tag { color: var(--lx-text-3); font-size: 0.66rem; font-weight: 500;
-        letter-spacing: 0.12em; text-transform: uppercase; }
-      .lx-feat h3 { margin: 0; color: #f8f9fa; font-size: 1rem; font-weight: 600;
+      /* Etiqueta técnica: en mono, versalita con tracking abierto — el guiño
+         "terminal" que en sans se pierde. */
+      .lx-feat-tag { color: var(--lx-text-3); font-size: 0.64rem; font-weight: 500;
+        letter-spacing: 0.12em; text-transform: uppercase; font-family: var(--font-mono, ui-monospace, monospace); }
+      .lx-feat h3 { margin: 0; color: #f8f9fa; font-size: 1rem; font-weight: 650;
         line-height: 1.3; letter-spacing: -0.012em; }
       .lx-feat p { margin: 0; color: var(--lx-text-2); font-size: 0.9rem; line-height: 1.6; }
 
@@ -783,7 +781,7 @@ function LandingStyles() {
         width: 26px; height: 26px; margin-bottom: 14px; border-radius: 50%;
         border: 1px solid var(--lx-border); color: var(--lx-text-2);
         font-size: 0.76rem; font-weight: 600; font-family: var(--font-mono, ui-monospace, monospace); }
-      .lx-steps h3 { margin: 0 0 8px; color: #f8f9fa; font-size: 0.96rem; font-weight: 600; letter-spacing: -0.03em; }
+      .lx-steps h3 { margin: 0 0 8px; color: #f8f9fa; font-size: 0.96rem; font-weight: 650; letter-spacing: -0.02em; }
       .lx-steps p { margin: 0; color: var(--lx-text-2); font-size: 0.9rem; line-height: 1.6; }
 
       /* ── Preguntas frecuentes ── */
@@ -810,20 +808,19 @@ function LandingStyles() {
       /* Cierre centrado: rompe la alineación izquierda para rematar con la CTA */
       .lx-closing { display: flex; flex-direction: column; align-items: center; text-align: center;
         padding: clamp(96px, 13vw, 180px) 0 clamp(72px, 9vw, 120px); }
-      .lx-closing-title { margin: 0; color: #f8f9fa; font-weight: 600;
-        font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.14; letter-spacing: -0.048em; text-wrap: balance; }
+      .lx-closing-title { margin: 0; color: #f8f9fa; font-weight: 650;
+        font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.14; letter-spacing: -0.025em; text-wrap: balance; }
       .lx-closing-lead { margin: 14px 0 30px; color: var(--lx-text-2); font-size: 1rem; line-height: 1.6; }
       /* Sin padding inferior: el carrusel es el que cierra el hero. */
       .lx-hero { display: flex; flex-direction: column; align-items: center; text-align: center;
         padding: clamp(56px, 8vw, 104px) 0 0;
         animation: lxUp 0.7s cubic-bezier(0.16,1,0.3,1) both; }
       .lx-sub { margin-left: auto; margin-right: auto; }
-      .lx-h1 { font-weight: 600; color: #f8f9fa;
-        font-size: clamp(2.05rem, 4.4vw, 3.6rem); line-height: 1.08; letter-spacing: -0.05em; margin: 0 0 20px; text-wrap: balance; }
+      .lx-h1 { font-weight: 650; color: #f8f9fa;
+        font-size: clamp(2.05rem, 4.4vw, 3.6rem); line-height: 1.08; letter-spacing: -0.03em; margin: 0 0 20px; text-wrap: balance; }
       .lx-grad { background: var(--lx-grad);
         -webkit-background-clip: text; background-clip: text; color: transparent; padding-right: 0.04em; }
-      /* Texto corrido en mono: menos cuerpo, más interlínea y medida más corta,
-         o cansa la vista. La unidad ch ya se adapta sola al nuevo ancho. */
+      /* Texto corrido: interlínea alta y medida corta para leer cómodo. */
       .lx-sub { color: var(--lx-text-2); font-size: 0.95rem; line-height: 1.72; max-width: 52ch; margin: 0 0 30px; }
       .lx-ctas { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
       @keyframes lxUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }

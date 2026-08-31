@@ -75,7 +75,7 @@ export default function CareerWorkspace() {
     <div className="daya-page" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-base)' }}>
       {/* Header */}
       <div style={{ padding: '22px 32px 18px', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <span style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>Carrera</span>
+        <span style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)', letterSpacing: '-0.025em' }}>Carrera</span>
         <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '3px 9px', borderRadius: 20, background: 'var(--bg-elevated)', color: 'var(--text-tertiary)', border: '1px solid var(--border-default)' }}>CV + Oferta → Análisis IA</span>
       </div>
 
@@ -159,7 +159,7 @@ export default function CareerWorkspace() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '20px 24px', borderRadius: 14, border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
                   <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                    <div style={{ fontSize: '2.8rem', fontWeight: 900, color: scoreColor(result.match.score), letterSpacing: '-0.05em', lineHeight: 1 }}>{result.match.score}</div>
+                    <div style={{ fontSize: '2.8rem', fontWeight: 900, color: scoreColor(result.match.score), letterSpacing: '-0.03em', lineHeight: 1 }}>{result.match.score}</div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', fontWeight: 700, letterSpacing: '0.06em', marginTop: 3 }}>ENCAJE</div>
                   </div>
                   <div style={{ flex: 1 }}>

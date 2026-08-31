@@ -45,7 +45,7 @@ export default function WorkspaceTopBar({ label, right }: { label?: string; righ
         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)' }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
         <img src="/logo.png" alt="" aria-hidden="true" style={{ width: 26, height: 26, objectFit: 'contain', filter: 'var(--logo-filter)', flexShrink: 0 }} />
-        <span style={{ fontSize: '0.98rem', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>Daya</span>
+        <span style={{ fontSize: '0.98rem', fontWeight: 650, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>Daya</span>
       </a>
 
       {label && (

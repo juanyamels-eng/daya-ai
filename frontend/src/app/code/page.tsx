@@ -137,7 +137,7 @@ export default function CodePage() {
         .cx-nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 40px; border-bottom: 1px solid var(--cx-border); background: rgba(19,19,20,0.85); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10; }
         .cx-logo { display: flex; align-items: center; gap: 9px; text-decoration: none; color: var(--cx-text); }
         .cx-logo img { width: 24px; height: 24px; object-fit: contain; filter: invert(1) brightness(1.2); }
-        .cx-logo span { font-size: 1rem; font-weight: 600; letter-spacing: -0.04em; }
+        .cx-logo span { font-size: 1rem; font-weight: 650; letter-spacing: -0.02em; }
         .cx-nav-right { display: flex; align-items: center; gap: 10px; }
         .cx-nav-link { color: var(--cx-text-2); text-decoration: none; font-size: 0.82rem; font-weight: 500; padding: 8px 14px; border-radius: 999px; transition: color 0.15s, background 0.15s; }
         .cx-nav-link:hover { color: var(--cx-text); background: rgba(255,255,255,0.06); }

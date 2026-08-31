@@ -126,7 +126,7 @@ export default function PlanesPage() {
                 )}
                 <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{plan.name}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 20 }}>
-                  <span style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.04em' }}>${plan.priceUSD}</span>
+                  <span style={{ fontSize: '2.4rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>${plan.priceUSD}</span>
                   <span style={{ fontSize: '0.9rem', color: 'var(--text-tertiary)' }}>{plan.priceUSD === 0 ? '' : '/mes'}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 28, flex: 1 }}>
