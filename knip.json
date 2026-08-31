@@ -1,0 +1,16 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignore": [
+    "backend/dist/**",
+    "frontend/.next/**",
+    "frontend/node_modules/**",
+    "backend/node_modules/**"
+  ],
+  "ignoreDependencies": ["pino-pretty"],
+  "next": {
+    "entry": ["frontend/next.config.*"]
+  },
+  "vitest": {
+    "config": ["backend/vitest.config.ts"]
+  }
+}

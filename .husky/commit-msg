@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Valida el mensaje del commit contra commitlint (Conventional Commits).
+npx --no -- commitlint --edit "$1"
