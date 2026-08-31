@@ -116,7 +116,7 @@ export default function ModelSelector({ onSelect, currentModel, onClose }: {
       await ollamaAPI.deleteModel(modelName)
       toast(`${t('models.deleted')} ${modelName}` || `Modelo ${modelName} eliminado`, 'success')
       await loadModels()
-    } catch (e) {
+    } catch {
       toast(t('models.deleteError') || 'Error eliminando modelo', 'error')
     }
   }

@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store'
-import type { AxiosError } from 'axios'
 import { api } from '@/lib/api'
 import { Button, Card } from '@/components/ui'
 import { WorkflowEditor } from '@/components/workflow/WorkflowEditor'
