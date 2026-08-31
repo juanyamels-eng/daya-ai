@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, type ReactNode } from 'react'
+import { Activity, Lock, Plug, Clock, RefreshCw, Copy, ShieldCheck, type LucideIcon } from 'lucide-react'
 
 import { ADMIN_KEY, API } from '../../../lib/config'
 
@@ -42,26 +43,26 @@ export default function AdminSistema() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
         {/* API Status */}
-        <Card title="Estado del servidor" icon="🟢">
+        <Card title="Estado del servidor" icon={Activity}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <StatusRow label="API Backend" status={health?.status === 'ok'} value={health?.status || 'Verificando...'} />
             <StatusRow label="Servicio" value={health?.service || 'Daya AI'} />
             <StatusRow label="Versión" value={health?.version || '1.0.0'} />
-            <button onClick={testAPI} style={{ marginTop: 8, padding: '9px', borderRadius: 9, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)' }}>
-              🔄 Probar conexión
+            <button onClick={testAPI} style={{ marginTop: 8, padding: '9px', borderRadius: 9, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+              <RefreshCw size={14} strokeWidth={2} /> Probar conexión
             </button>
           </div>
         </Card>
 
         {/* Admin Access */}
-        <Card title="Acceso de administrador" icon="🔐">
+        <Card title="Acceso de administrador" icon={Lock}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ padding: '10px 12px', borderRadius: 9, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginBottom: 4 }}>Tu clave admin (no compartir)</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace', wordBreak: 'break-all' }}>{'•'.repeat(40)}</div>
             </div>
-            <button onClick={copyAdminKey} style={{ padding: '9px', borderRadius: 9, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-body)' }}>
-              📋 Copiar clave admin
+            <button onClick={copyAdminKey} style={{ padding: '9px', borderRadius: 9, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+              <Copy size={14} strokeWidth={2} /> Copiar clave admin
             </button>
             <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
               Usa esta clave en el header <code style={{ fontFamily: 'monospace', background: 'var(--bg-overlay)', padding: '1px 4px', borderRadius: 3 }}>x-admin-key</code> para acceder a la API de administración.
@@ -70,7 +71,7 @@ export default function AdminSistema() {
         </Card>
 
         {/* API Endpoints */}
-        <Card title="Endpoints de administración" icon="🔌">
+        <Card title="Endpoints de administración" icon={Plug}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
               { method: 'GET', path: '/api/system/stats', desc: 'Estadísticas generales' },
@@ -92,7 +93,7 @@ export default function AdminSistema() {
         </Card>
 
         {/* Scheduler info */}
-        <Card title="Scheduler nocturno" icon="⏰">
+        <Card title="Scheduler nocturno" icon={Clock}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ padding: '14px', borderRadius: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)' }}>
               <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'monospace', marginBottom: 4 }}>03:00 AM</div>
@@ -106,8 +107,8 @@ export default function AdminSistema() {
                 </div>
               ))}
             </div>
-            <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', fontSize: '0.78rem', color: '#10b981' }}>
-              🔒 Este proceso es invisible para los usuarios
+            <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', fontSize: '0.78rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: 7 }}>
+              <ShieldCheck size={14} strokeWidth={2} /> Este proceso es invisible para los usuarios
             </div>
           </div>
         </Card>
@@ -116,11 +117,11 @@ export default function AdminSistema() {
   )
 }
 
-function Card({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
+function Card({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: ReactNode }) {
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 14, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>
+        <Icon size={16} strokeWidth={1.8} style={{ color: 'var(--text-tertiary)' }} />
         <h2 style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</h2>
       </div>
       {children}

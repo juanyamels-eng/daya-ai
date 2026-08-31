@@ -233,6 +233,8 @@ html.dark ::highlight(daya-find-on) { background: #eab308; color: #131314; }
 @keyframes sidebarCollapse { from { width:270px } to { width:64px } }
 @keyframes drawerSlide { from { opacity:0; transform:translateX(-10px) } to { opacity:1; transform:translateX(0) } }
 
+.spin { animation: spin 0.8s linear infinite; }
+
 /* ============================================
    Daya — Biblioteca de animaciones
    Sutiles, elegantes, con física de resorte.

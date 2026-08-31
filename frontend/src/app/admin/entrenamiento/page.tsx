@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { Package, Star, Rocket, Play, Loader2, Download, Lightbulb } from 'lucide-react'
 
 import { ADMIN_KEY, API } from '../../../lib/config'
 
@@ -98,36 +99,42 @@ export default function AdminEntrenamiento() {
       {/* Stats + Actions */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 14, marginBottom: 28, alignItems: 'stretch' }}>
         {[
-          { label: 'Datos totales', value: stats?.total || 0, icon: '📦', color: '#3f3f46' },
-          { label: 'Alta calidad', value: stats?.highQuality || 0, icon: '⭐', color: '#10b981' },
-          { label: 'Listo para entrenar', value: stats?.readyForFineTuning ? '✓ Sí' : '✗ No', icon: '🚀', color: stats?.readyForFineTuning ? '#10b981' : '#f59e0b' },
-        ].map(s => (
+          { label: 'Datos totales', value: stats?.total || 0, icon: Package, color: '#3f3f46' },
+          { label: 'Alta calidad', value: stats?.highQuality || 0, icon: Star, color: '#10b981' },
+          { label: 'Listo para entrenar', value: stats?.readyForFineTuning ? '✓ Sí' : '✗ No', icon: Rocket, color: stats?.readyForFineTuning ? '#10b981' : '#f59e0b' },
+        ].map(s => {
+          const Icon = s.icon
+          return (
           <div key={s.label} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 14, padding: '16px 18px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: s.color, opacity: 0.7 }} />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: 8 }}>{s.icon} {s.label}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 7 }}><Icon size={14} strokeWidth={1.8} /> {s.label}</div>
             <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)' }}>{s.value}</div>
           </div>
-        ))}
+          )
+        })}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button onClick={runLearning} disabled={running}
-            style={{ padding: '10px 18px', borderRadius: 10, background: 'var(--accent-500)', color: 'white', border: 'none', cursor: running ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap' }}>
-            {running ? '⏳ Ejecutando...' : '▶ Ejecutar aprendizaje'}
+            style={{ padding: '10px 18px', borderRadius: 10, background: 'var(--accent-500)', color: 'white', border: 'none', cursor: running ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            {running ? <Loader2 size={15} strokeWidth={2} className="spin" /> : <Play size={15} strokeWidth={2} />} {running ? 'Ejecutando...' : 'Ejecutar aprendizaje'}
           </button>
           <button onClick={exportData} disabled={exporting}
-            style={{ padding: '10px 18px', borderRadius: 10, background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', cursor: exporting ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap' }}>
-            {exporting ? '⏳ Exportando...' : '⬇ Exportar JSONL'}
+            style={{ padding: '10px 18px', borderRadius: 10, background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', cursor: exporting ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            {exporting ? <Loader2 size={15} strokeWidth={2} className="spin" /> : <Download size={15} strokeWidth={2} />} {exporting ? 'Exportando...' : 'Exportar JSONL'}
           </button>
         </div>
       </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: 'var(--bg-elevated)', padding: 4, borderRadius: 10, width: 'fit-content' }}>
-        {([{ key: 'datos', label: '📦 Datos de entrenamiento' }, { key: 'insights', label: '💡 Insights generados' }] as const).map(t => (
+        {([{ key: 'datos', label: 'Datos de entrenamiento', icon: Package }, { key: 'insights', label: 'Insights generados', icon: Lightbulb }] as const).map(t => {
+          const Icon = t.icon
+          return (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
-            style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, background: activeTab === t.key ? 'var(--bg-surface)' : 'transparent', color: activeTab === t.key ? 'var(--text-primary)' : 'var(--text-tertiary)', transition: 'all 0.15s', fontFamily: 'var(--font-body)' }}>
-            {t.label}
+            style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, background: activeTab === t.key ? 'var(--bg-surface)' : 'transparent', color: activeTab === t.key ? 'var(--text-primary)' : 'var(--text-tertiary)', transition: 'all 0.15s', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 7 }}>
+            <Icon size={14} strokeWidth={1.8} /> {t.label}
           </button>
-        ))}
+          )
+        })}
       </div>
 
       {activeTab === 'datos' && (

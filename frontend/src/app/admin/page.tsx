@@ -55,7 +55,7 @@ export default function AdminDashboard() {
       {/* Row 2 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 20 }}>
         {/* Planes */}
-        <Section title="Distribución de planes" icon="⚡">
+        <Section title="Distribución de planes" icon={Zap}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[
               { plan: 'FREE', color: '#6b7280', label: 'Gratis' },
@@ -82,7 +82,7 @@ export default function AdminDashboard() {
         </Section>
 
         {/* Training status */}
-        <Section title="Estado del entrenamiento" icon="🧬">
+        <Section title="Estado del entrenamiento" icon={Dna}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <StatRow label="Datos totales" value={stats?.training?.total || 0} />
             <StatRow label="Alta calidad (≥0.7)" value={stats?.training?.highQuality || 0} good />
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent insights */}
-      <Section title="Últimos insights de Daya" icon="💡">
+      <Section title="Últimos insights de Daya" icon={Lightbulb}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
           {(stats?.training?.recentInsights || []).slice(0, 6).map((insight, i) => {
             let data: unknown = {}
@@ -150,11 +150,11 @@ function KPICard({ label, value, icon: Icon, color, change }: KPICardProps) {
   )
 }
 
-function Section({ title, icon, children }: { title: string; icon: string; children: ReactNode }) {
+function Section({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: ReactNode }) {
   return (
     <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 14, padding: '20px 22px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>
+        <Icon size={16} strokeWidth={1.8} style={{ color: 'var(--text-tertiary)' }} />
         <h2 style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>{title}</h2>
       </div>
       {children}
