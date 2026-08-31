@@ -8,7 +8,7 @@
  * - Automatic cleanup of expired entries
  */
 
-import { logger } from '../../../services/logger'
+import { logger } from '../../services/logger'
 
 interface CachedResponse {
   data: any
@@ -217,7 +217,7 @@ export class OpenRouterClient {
 
       return response
     } catch (error) {
-      logger.error(`OpenRouter API error for model ${model}:`, error)
+      logger.error({ err: error, model }, `OpenRouter API error for model ${model}`)
       throw error
     }
   }

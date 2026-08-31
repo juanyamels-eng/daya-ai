@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { prisma } from '../lib/prisma'
+import { DB_AVAILABLE } from './dbAvailable'
 
-describe('Database Connection', () => {
+describe.skipIf(!DB_AVAILABLE)('Database Connection', () => {
   beforeAll(async () => {
     // Ensure connection
     await prisma.$connect()

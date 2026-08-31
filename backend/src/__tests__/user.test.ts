@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 import { prisma } from '../lib/prisma'
+import { DB_AVAILABLE } from './dbAvailable'
 
-describe('User Model Tests', () => {
+describe.skipIf(!DB_AVAILABLE)('User Model Tests', () => {
   let testUserId: string
 
   afterAll(async () => {
