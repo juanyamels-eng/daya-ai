@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { ADMIN_KEY, API } from '../../../lib/config'
 
@@ -10,7 +10,6 @@ interface AdminUser { id: string; name: string; email: string; plan: string; mes
 
 export default function AdminUsuarios() {
   const [users, setUsers] = useState<AdminUser[]>([])
-  const [filtered, setFiltered] = useState<AdminUser[]>([])
   const [search, setSearch] = useState('')
   const [planFilter, setPlanFilter] = useState('ALL')
   const [loading, setLoading] = useState(true)
@@ -22,11 +21,11 @@ export default function AdminUsuarios() {
     loadUsers()
   }, [])
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     let result = users
     if (search) result = result.filter(u => u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()))
     if (planFilter !== 'ALL') result = result.filter(u => u.plan === planFilter)
-    setFiltered(result)
+    return result
   }, [users, search, planFilter])
 
   const loadUsers = async () => {
