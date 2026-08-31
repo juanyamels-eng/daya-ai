@@ -9,6 +9,7 @@
  */
 
 import { logger } from '../../services/logger'
+import { redisGet, redisSet } from '../../services/redis'
 
 type ChatMessage = { role: string; content: string }
 // El input de un modelo: un string, una lista de mensajes, o un objeto con parámetros.
@@ -50,7 +51,7 @@ export class ModelCache {
    * Generate hash key for cache lookup
    * Combines model, input tokens, and model parameters
    */
-  private hashKey(model: string, input: ModelInput): string {
+  hashKey(model: string, input: ModelInput): string {
     const obj = typeof input === 'object' && input !== null && !Array.isArray(input) ? input : undefined
     const normalized = {
       model,
@@ -196,12 +197,22 @@ export class OpenRouterClient {
   }): Promise<unknown> {
     const { skipCache = false, ttl } = options || {}
 
-    // Check cache first
+    // Check cache first (memoria local)
     if (!skipCache) {
       const cached = this.cache.get(model, input)
       if (cached) {
         logger.debug(`Cache hit for ${model}`)
         return cached
+      }
+
+      // Cache distribuido (Redis): otra instancia puede haberlo guardado.
+      // Si no hay Redis (REDIS_URL ausente o caído), devuelve null y seguimos.
+      const key = this.cache.hashKey(model, input)
+      const fromRedis = await redisGet(key)
+      if (fromRedis !== null) {
+        this.cache.set(model, input, fromRedis, ttl)
+        logger.debug(`Redis cache hit for ${model}`)
+        return fromRedis
       }
     }
 
@@ -214,9 +225,12 @@ export class OpenRouterClient {
       // Make API request
       const response = await this.makeRequest(model, input)
 
-      // Cache successful response
+      // Cache successful response (memoria + Redis distribuido)
       if (response && !skipCache) {
         this.cache.set(model, input, response, ttl)
+        const key = this.cache.hashKey(model, input)
+        const ttlSeconds = Math.max(1, Math.floor((ttl ?? 300000) / 1000))
+        void redisSet(key, response, ttlSeconds) // fire-and-forget, nunca bloquea
       }
 
       return response
