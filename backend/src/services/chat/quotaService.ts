@@ -58,16 +58,3 @@ export async function refundMessageQuota(userId: string): Promise<void> {
     WHERE id = ${userId}::"text"
   `.catch(() => {})
 }
-
-export async function handleSearchQuota(userId: string, triggered: boolean): Promise<{ triggered: boolean; exhausted: boolean }> {
-  if (!triggered) return { triggered: false, exhausted: false }
-  const { consumeQuota } = await import('../quota')
-  const q = await consumeQuota(userId, 'search')
-  if (!q.ok) return { triggered: false, exhausted: true }
-  return { triggered: true, exhausted: false }
-}
-
-export async function refundSearchQuota(userId: string): Promise<void> {
-  const { refundQuota } = await import('../quota')
-  await refundQuota(userId, 'search')
-}

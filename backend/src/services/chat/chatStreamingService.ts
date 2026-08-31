@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { chatStream, chatChainStream } from '../../services/openrouter'
 import { selectChain } from '../../services/modelSelector'
 import { cleanFallbackTitle, generateSmartTitle } from '../../controllers/chatController'
+import { refundMessageQuota } from './quotaService'
 import { prisma } from '../../lib/prisma'
 
 export interface StreamingConfig {
@@ -114,10 +115,9 @@ export async function processStream(
   if (!fullResponse.trim()) streamFailed = true
 
   if (streamFailed) {
-    await prisma.$executeRaw`
-      UPDATE "User" SET "messagesUsed" = GREATEST("messagesUsed" - 1, 0)
-      WHERE id = ${userId}::"text"
-    `.catch(() => {})
+    // Devuelve el cupo reservado: el reembolso vive en quotaService (una sola
+    // fuente de verdad, no la SQL duplicada que había aquí).
+    await refundMessageQuota(userId)
   }
 
   if (!streamFailed && !clientGoneRef.current && toolsUsed.length) {
