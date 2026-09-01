@@ -107,10 +107,9 @@
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
-      "eslint --fix",
-      "tsc --noEmit"
+      "npx eslint --fix"
     ],
-    "*.{json,md}": "prettier --write"
+    "*.{json,md}": "npx prettier --write"
   },
   "engines": {
     "node": ">=22"

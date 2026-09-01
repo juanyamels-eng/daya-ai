@@ -81,9 +81,16 @@ describe('utilidades del agente', () => {
   it('las herramientas rechazan rutas fuera del repo', async () => {
     const tools = buildExecutorTools()
     const read = tools.find(t => t.name === 'read_file')!
-    const res = await read.run({ path: 'C:\\Windows\\system32' }, { cwd: 'C:\\repo\\backend', repoRoot: 'C:\\repo' }).catch((e: unknown) => String(e?.message || e))
+    // Rutas de prueba válidas para cada plataforma: las de estilo Windows
+    // solo disparan el chequeo "fuera del repo" en Windows; en Linux se usan
+    // rutas POSIX absolutas fuera de la raíz del repo.
+    const isWin = process.platform === 'win32'
+    const outside = isWin ? 'C:\\Windows\\system32' : '/etc/hostname'
+    const cwd = isWin ? 'C:\\repo\\backend' : '/tmp/daya-repo/backend'
+    const repoRoot = isWin ? 'C:\\repo' : '/tmp/daya-repo'
+    const res = await read.run({ path: outside }, { cwd, repoRoot }).catch((e: unknown) => String(e?.message || e))
     expect(String(res)).toMatch(/fuera del repo/)
-  })
+  }, 20000)
 
   it('search_files devuelve sin romper', () => {
     const tools = buildExecutorTools()

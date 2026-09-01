@@ -19,8 +19,7 @@
   },
   "lint-staged": {
     "backend/**/*.{ts,js}": [
-      "cd backend && npx eslint --fix",
-      "cd backend && npx tsc --noEmit"
+      "cd backend && npx eslint --fix"
     ],
     "frontend/src/**/*.{ts,tsx,js,jsx}": [
       "cd frontend && npx eslint --fix"

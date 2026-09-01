@@ -52,8 +52,10 @@ describe('registro de herramientas del agente', () => {
 
   it('calcular soporta las expresiones anunciadas (aritmética, %, stats, unidades)', async () => {
     // Interés compuesto: 1000*(1+0.05)^10 = 1628.8946...
+    // El último dígito puede redondear distinto según la plataforma (float), así
+    // que asertamos el prefijo estable en vez de la cadena completa.
     const interest = await runTool('u1', 'calcular', { expresion: '1000*(1+0.05)^10' })
-    expect(interest).toBe('1000*(1+0.05)^10 = 1628.894626777442')
+    expect(interest).toMatch(/^1000\*\(1\+0\.05\)\^10 = 1628\.89462677744/)
 
     // Estadística: mean/median/std siguen disponibles en mathjs 15
     const mean = await runTool('u1', 'calcular', { expresion: 'mean([3,7,8,5])' })
