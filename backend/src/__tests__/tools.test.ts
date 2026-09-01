@@ -50,6 +50,23 @@ describe('registro de herramientas del agente', () => {
     expect(out).toBe('2+2 = 4')
   }, 60000)
 
+  it('calcular soporta las expresiones anunciadas (aritmética, %, stats, unidades)', async () => {
+    // Interés compuesto: 1000*(1+0.05)^10 = 1628.8946...
+    const interest = await runTool('u1', 'calcular', { expresion: '1000*(1+0.05)^10' })
+    expect(interest).toBe('1000*(1+0.05)^10 = 1628.894626777442')
+
+    // Estadística: mean/median/std siguen disponibles en mathjs 15
+    const mean = await runTool('u1', 'calcular', { expresion: 'mean([3,7,8,5])' })
+    expect(mean).toBe('mean([3,7,8,5]) = 5.75')
+    const median = await runTool('u1', 'calcular', { expresion: 'median([3,7,8,5])' })
+    expect(median).toBe('median([3,7,8,5]) = 6')
+
+    // Conversión de unidades: "19 inch to cm" => Unit (se renderiza como objeto)
+    const unit = await runTool('u1', 'calcular', { expresion: '19 inch to cm' })
+    expect(unit).toContain('19 inch to cm = {')
+    expect(unit).toContain('"unit":"cm"')
+  }, 60000)
+
   it('toActTools solo incluye herramientas seguras y bien formadas', () => {
     const safe = ALL_TOOLS.filter(t => t.safeForAct)
     const actTools = toActTools()
