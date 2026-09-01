@@ -24,7 +24,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run start',
+    // Ensure standalone folder has the static and public assets available
+    // before starting the standalone server. This copies .next/static and
+    // public into the standalone tree if present, then starts the server.
+    // Uses bash so it's portable for CI Linux runners.
+    command: 'bash -lc "mkdir -p .next/standalone/.next && cp -r .next/static .next/standalone/.next/static 2>/dev/null || true; mkdir -p .next/standalone/public && cp -r public .next/standalone/public 2>/dev/null || true; node .next/standalone/server.js"',
     url: BASE_URL,
     reuseExistingServer: true,
     timeout: 120_000,
