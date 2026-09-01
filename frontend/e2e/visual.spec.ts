@@ -32,6 +32,15 @@ for (const theme of THEMES) {
       await page.goto(path)
       await page.waitForLoadState('networkidle')
       await page.evaluate(() => document.fonts?.ready)
+
+      // Estabilizar visual tests: desactivar animaciones y ocultar fondo vivo
+      // que genera ruido (estrellas/aurora, capas de auth). Esto reduce falsos
+      // positivos por diferencias no deterministas en CI.
+      await page.addStyleTag({ content: `
+        * { animation: none !important; transition: none !important; caret-color: transparent !important; }
+        .lx-stars, .lx-aurora, .lxa-stars, .lxa-stars::before, .lxa-stars::after { visibility: hidden !important; }
+      ` })
+
       const isDark = await page.evaluate(() => document.documentElement.classList.contains('dark'))
       expect(isDark).toBe(theme === 'dark')
       await expect(page).toHaveScreenshot(`${name}-${theme}.png`)
