@@ -75,7 +75,7 @@ export function LangSelector({ dropUp = false }: { dropUp?: boolean }) {
           padding: 7px 11px; border-radius: 9px;
           background: transparent; border: 1px solid var(--border-default);
           cursor: pointer; font-size: 0.78rem; font-weight: 600;
-          color: var(--text-secondary); font-family: var(--font-body);
+          color: var(--text-primary); font-family: var(--font-body);
           transition: background 0.15s, color 0.15s, border-color 0.15s;
         }
         .ls-trigger:hover { background: var(--bg-elevated); color: var(--text-primary); border-color: var(--border-strong); }
