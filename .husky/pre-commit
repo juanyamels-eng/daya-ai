@@ -3,19 +3,26 @@ set -e
 
 echo "🔍 Running pre-commit checks..."
 
-# 1. Run lint-staged (eslint + tsc on changed files)
+# 1. Lint-staged: eslint + prettier + tsc sobre los archivos staged.
+#    Los binarios se invocan vía npx para que se resuelvan en Windows y Linux.
 echo "📝 Checking code style and types..."
 npx lint-staged
 
-# 2. Secrets scanning
+# 2. Secret scanning con secretlint (escáner real de Node.js, sin Python/Docker).
+#    Sustituye al wrapper `detect-secrets`, que solo avisaba "could not execute
+#    tool" cuando no había Python/Docker disponible.
 echo "🔐 Scanning for exposed secrets..."
-npx detect-secrets scan --baseline .secrets.baseline || {
-  echo "⚠️  Secrets scan failed. Review changes for exposed credentials."
+if ! npx secretlint "**/*"; then
+  echo "❌ Secrets scan failed. Review changes for exposed credentials."
   exit 1
-}
+fi
 
-# 3. Type check entire project (critical catch)
-echo "✅ Type checking backend..."
-cd backend && npx tsc --noEmit
+# 3. Type check completo del backend (red de seguridad; lint-staged ya chequea
+#    solo los archivos staged).
+echo "🛠  Type checking backend..."
+if ! (cd backend && npx tsc --noEmit); then
+  echo "❌ Backend typecheck failed."
+  exit 1
+fi
 
 echo "✅ Pre-commit checks passed!"
