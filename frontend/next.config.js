@@ -24,6 +24,10 @@ const nextConfig = {
   },
 
   async headers() {
+    const apiSources = [
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+      process.env.NEXT_PUBLIC_API_URL ? new URL(process.env.NEXT_PUBLIC_API_URL).host : '',
+    ].filter(Boolean).join(' ')
     return [
       {
         source: '/:path*',
@@ -41,7 +45,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: blob: https:",
               "font-src 'self' https://fonts.gstatic.com",
-              "connect-src 'self' https://openrouter.ai https://api.openai.com https://*.sentry.io wss: ws:",
+              "connect-src 'self' " + apiSources + " https://openrouter.ai https://api.openai.com https://*.sentry.io wss: ws:",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",

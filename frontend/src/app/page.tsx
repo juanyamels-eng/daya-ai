@@ -682,7 +682,20 @@ function LandingStyles() {
         background: transparent; border: none; cursor: pointer; text-decoration: none;
         color: var(--lx-text-2); font-size: 0.79rem; font-weight: 500; font-family: inherit; letter-spacing: -0.02em; transition: color 0.15s, background 0.15s; }
       .lx-nav-link:hover { color: var(--lx-text); background: rgba(255,255,255,0.07); }
-      /* El LangSelector consume las variables globales del tema claro: ya coinciden */
+      /* El LangSelector hereda las variables del tema claro (la landing es una
+         superficie SIEMPRE oscura, no lleva la clase 'dark' en <html>).
+         Re-encajamos el fondo y los textos del selector contra la paleta oscura
+         de la landing para que el texto "EN" y los códigos de idioma cumplan
+         contraste WCAG (antes --text-secondary quedaría #45414f sobre #131314 ≈ 1.87:1). */
+      .lx-lang .ls-root { color: var(--lx-text-2); }
+      .lx-lang .ls-trigger { color: var(--lx-text-2); border-color: var(--lx-border); background: transparent; }
+      .lx-lang .ls-trigger:hover { color: var(--lx-text); background: rgba(255,255,255,0.07); border-color: var(--lx-border); }
+      .lx-lang .ls-dropdown { background: var(--surface-dark-card); border-color: var(--lx-border); box-shadow: 0 8px 28px rgba(0,0,0,0.45); }
+      .lx-lang .ls-option:hover { background: var(--surface-dark-card-hover); }
+      .lx-lang .ls-option--active { background: var(--surface-dark-card-hover); }
+      .lx-lang .ls-code { color: var(--surface-dark-text-3); }
+      .lx-lang .ls-option--active .ls-code { color: var(--brand-bright); }
+      .lx-lang .ls-name { color: var(--surface-dark-text); }
       .lx-lang { display: inline-flex; }
 
       /* ── Botones ── */
