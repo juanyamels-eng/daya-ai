@@ -12,7 +12,13 @@ import { test, expect } from '@playwright/test'
 const THEMES = ['light', 'dark'] as const
 
 const PAGES = [
-  { path: '/', name: 'landing' },
+  // La landing NO se compara aquí: tiene un carrusel de <video> (autoplay por
+  // IntersectionObserver) + fondo animado (estrellas/aurora). Los fotogramas de
+  // video y el renderizado animado NO son deterministas entre entornos (CI
+  // headless linux ≠ máquina local), así que su snapshot no es estable — por
+  // eso se audita la accesibilidad y el resto de páginas estáticas, no el pixel
+  // de la portada. Si algún día la landing deja de tener video, se puede volver
+  // a añadir con un baseline regenerado en el entorno de CI.
   { path: '/auth/login', name: 'login' },
   { path: '/auth/register', name: 'register' },
   { path: '/planes', name: 'pricing' },

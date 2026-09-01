@@ -19,10 +19,10 @@
   },
   "lint-staged": {
     "backend/**/*.{ts,js}": [
-      "cd backend && npx eslint --fix"
+      "npx --prefix backend eslint --fix --config backend/eslint.config.mjs"
     ],
     "frontend/src/**/*.{ts,tsx,js,jsx}": [
-      "cd frontend && npx eslint --fix"
+      "npx --prefix frontend eslint --fix --config frontend/eslint.config.mjs"
     ]
   }
 }
