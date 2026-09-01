@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
     "lint": "eslint src/ --max-warnings 115",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit",
