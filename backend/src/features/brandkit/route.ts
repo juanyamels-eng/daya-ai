@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
   try {
     const kit = await db.brandKit.findUnique({ where: { userId: uid(req) } })
     res.json(kit || null)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 // PUT /api/brandkit — crea o actualiza (upsert) el kit del usuario.
@@ -37,9 +37,9 @@ router.put('/', async (req, res) => {
       create: { userId: uid(req), ...data },
     })
     res.json(kit)
-  } catch (e: any) {
-    console.error('[brandkit PUT] error:', e?.message || e)
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    console.error('[brandkit PUT] error:', (e instanceof Error && e.message) || String(e))
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 

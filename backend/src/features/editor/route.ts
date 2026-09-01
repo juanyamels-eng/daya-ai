@@ -42,8 +42,8 @@ router.post('/assist', async (req: Request, res: Response) => {
       'claude', system, getCheapModel()
     )
     res.json({ result: (result || '').trim() })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo procesar el texto.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'No se pudo procesar el texto.' })
   }
 })
 
@@ -68,8 +68,8 @@ router.post('/generate', async (req: Request, res: Response) => {
       'claude', system
     )
     res.json({ text: (result || '').trim() })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo generar el documento.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'No se pudo generar el documento.' })
   }
 })
 
@@ -111,8 +111,8 @@ router.post('/diagram', async (req: Request, res: Response) => {
     )
     code = (code || '').trim().replace(/^```(mermaid)?/i, '').replace(/```$/,'').trim()
     res.json({ code })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo generar el diagrama.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'No se pudo generar el diagrama.' })
   }
 })
 
@@ -124,8 +124,8 @@ router.post('/save', async (req: Request, res: Response) => {
     const fileName = (title?.trim() || 'Documento sin título') + '.md'
     const docId = await saveToLibrary((req as any).userId, fileName, 'word', content, Buffer.byteLength(content, 'utf8'))
     res.status(201).json({ success: true, docId })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo guardar.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'No se pudo guardar.' })
   }
 })
 
@@ -376,8 +376,8 @@ router.post('/export', async (req: Request, res: Response) => {
     res.setHeader('Content-Type', contentType)
     res.setHeader('Content-Disposition', `attachment; filename="${safeTitle}.${ext}"`)
     res.send(buffer)
-  } catch (e: any) {
-    console.error('[editor/export] error:', e?.message || e)
-    res.status(500).json({ error: 'No se pudo exportar: ' + (e?.message || 'error') })
+  } catch (e: unknown) {
+    console.error('[editor/export] error:', (e instanceof Error && e.message) || String(e))
+    res.status(500).json({ error: 'No se pudo exportar: ' + ((e instanceof Error && e.message) || 'error') })
   }
 })

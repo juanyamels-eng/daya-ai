@@ -20,8 +20,8 @@ router.post('/from-markdown', (req: Request, res: Response) => {
   if (typeof markdown !== 'string') return res.status(400).json({ error: 'Falta markdown (string).' })
   try {
     res.json({ document: markdownToBlocks(markdown) })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La conversión falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'La conversión falló.' })
   }
 })
 

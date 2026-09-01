@@ -51,9 +51,9 @@ export const createDocument: DayaTool = {
       const docId = await saveToLibrary(userId, fileName, formato, stored, content.length)
       const base = process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${process.env.PORT || 4000}`
       return `✓ Documento ${formato.toUpperCase()} creado: "${titulo}". Enlace de descarga (inclúyelo en tu respuesta como link markdown): ${base}/api/documents/download/${docId}`
-    } catch (e: any) {
+    } catch (e: unknown) {
       await refundQuota(userId, 'document').catch(() => {})
-      return `Falló la creación del documento: ${e?.message || e}`
+      return `Falló la creación del documento: ${(e instanceof Error && e.message) || String(e)}`
     }
   },
 }

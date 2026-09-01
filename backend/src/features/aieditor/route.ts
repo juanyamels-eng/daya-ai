@@ -43,8 +43,8 @@ router.post('/autocomplete', async (req: Request, res: Response) => {
       send({ delta })
     }
     if (!cancelled) send({ done: true })
-  } catch (e: any) {
-    send({ error: e?.message || 'Autocomplete failed.' })
+  } catch (e: unknown) {
+    send({ error: (e instanceof Error && e.message) || 'Autocomplete failed.' })
   }
   res.end()
 })
@@ -71,8 +71,8 @@ router.post('/command', async (req: Request, res: Response) => {
       send({ delta })
     }
     if (!cancelled) send({ done: true, full })
-  } catch (e: any) {
-    send({ error: e?.message || 'Command failed.' })
+  } catch (e: unknown) {
+    send({ error: (e instanceof Error && e.message) || 'Command failed.' })
   }
   res.end()
 })
@@ -104,8 +104,8 @@ router.post('/generate-logo', async (req: Request, res: Response) => {
       send({ delta })
     }
     if (!cancelled) send({ done: true })
-  } catch (e: any) {
-    send({ error: e?.message || 'Error generating logo.' })
+  } catch (e: unknown) {
+    send({ error: (e instanceof Error && e.message) || 'Error generating logo.' })
   }
   res.end()
 })

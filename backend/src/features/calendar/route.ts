@@ -29,7 +29,7 @@ router.get('/events', async (req, res) => {
     }
     const events = await db.calendarEvent.findMany({ where, orderBy: { start: 'asc' } })
     res.json(events)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.post('/events', async (req, res) => {
@@ -48,7 +48,7 @@ router.post('/events', async (req, res) => {
       },
     })
     res.status(201).json(ev)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.patch('/events/:id', async (req, res) => {
@@ -66,14 +66,14 @@ router.patch('/events/:id', async (req, res) => {
       },
     })
     res.json({ success: r.count > 0 })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.delete('/events/:id', async (req, res) => {
   try {
     await db.calendarEvent.deleteMany({ where: { id: req.params.id, userId: uid(req) } })
     res.json({ success: true })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 // ── Exportación a .ics estándar (descargable, abre en cualquier calendario) ──
@@ -105,7 +105,7 @@ router.get('/export.ics', async (req, res) => {
     res.setHeader('Content-Type', 'text/calendar; charset=utf-8')
     res.setHeader('Content-Disposition', 'attachment; filename="daya-calendario.ics"')
     res.send(lines.join('\r\n'))
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 export default router

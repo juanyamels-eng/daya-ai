@@ -28,8 +28,8 @@ router.post('/analyze', async (req: Request, res: Response) => {
   try {
     const insight = await analyzeTranscript(String(transcript), { kind })
     res.json({ insight })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'El análisis falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'El análisis falló.' })
   }
 })
 
@@ -41,8 +41,8 @@ router.post('/process', audioUpload.single('audio'), async (req: Request, res: R
     const result = await transcribeAndAnalyze(req.file.buffer, req.file.originalname || 'audio.webm', { kind })
     if (!result.success) return res.status(500).json({ error: result.error })
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'El procesamiento falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'El procesamiento falló.' })
   }
 })
 
@@ -53,8 +53,8 @@ router.post('/markdown', (req: Request, res: Response) => {
   try {
     const md = insightToMarkdown(insight as AudioInsight, title || 'Resumen de audio')
     res.json({ markdown: md })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo generar el markdown.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'No se pudo generar el markdown.' })
   }
 })
 

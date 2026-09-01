@@ -45,7 +45,7 @@ router.get('/account', async (req, res) => {
       encryptionReady: isEncryptionConfigured(),
       account: acc ? { imapHost: acc.imapHost, username: acc.username, fromName: acc.fromName } : null,
     })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 // Conectar / guardar credenciales (se prueba la conexión antes de guardar)
@@ -74,14 +74,14 @@ router.post('/connect', async (req, res) => {
       create: { userId: uid(req), imapHost, imapPort: imapPort || 993, imapSecure: imapSecure !== false, smtpHost: smtpHost || '', smtpPort: smtpPort || 587, smtpSecure: !!smtpSecure, username, passwordEnc, fromName: fromName || '' },
     })
     res.json({ success: true })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 router.delete('/account', async (req, res) => {
   try {
     await db.emailAccount.deleteMany({ where: { userId: uid(req) } })
     res.json({ success: true })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 // Bandeja: últimos correos (solo cabeceras, ligero)
@@ -114,9 +114,9 @@ router.get('/inbox', async (req, res) => {
     } finally { lock.release() }
     await client.logout()
     res.json({ messages: out.reverse() }) // más reciente primero
-  } catch (e: any) {
+  } catch (e: unknown) {
     try { await client.logout() } catch {}
-    res.status(500).json({ error: 'No se pudo leer la bandeja: ' + (e?.message || e) })
+    res.status(500).json({ error: 'No se pudo leer la bandeja: ' + ((e instanceof Error && e.message) || String(e)) })
   }
 })
 
@@ -150,9 +150,9 @@ router.post('/summarize', async (req, res) => {
       getCheapModel()
     )
     res.json({ summary })
-  } catch (e: any) {
+  } catch (e: unknown) {
     try { await client.logout() } catch {}
-    res.status(500).json({ error: 'No se pudo resumir el correo: ' + (e?.message || e) })
+    res.status(500).json({ error: 'No se pudo resumir el correo: ' + ((e instanceof Error && e.message) || String(e)) })
   }
 })
 
@@ -183,8 +183,8 @@ router.post('/send', async (req, res) => {
       text: String(body),
     })
     res.json({ success: true })
-  } catch (e: any) {
-    res.status(500).json({ error: 'No se pudo enviar el correo: ' + (e?.message || e) })
+  } catch (e: unknown) {
+    res.status(500).json({ error: 'No se pudo enviar el correo: ' + ((e instanceof Error && e.message) || String(e)) })
   }
 })
 

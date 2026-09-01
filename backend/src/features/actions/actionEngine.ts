@@ -137,8 +137,8 @@ export async function runAction<I, O>(
   let planResult: PlanResult
   try {
     planResult = await def.planner(def.intent, input)
-  } catch (e: any) {
-    return { ok: false, error: 'El planificador (IA) falló: ' + (e?.message || ''), usedAI: true, healed: false, fromCache: false }
+  } catch (e: unknown) {
+    return { ok: false, error: 'El planificador (IA) falló: ' + ((e instanceof Error && e.message) || ''), usedAI: true, healed: false, fromCache: false }
   }
 
   // 3) Ejecutar con el plan nuevo.
@@ -152,8 +152,8 @@ export async function runAction<I, O>(
     // forceReplan=false y que hubo un intento previo). Para simplicidad lo marcamos
     // cuando NO fue forzado por el caller.
     return { ok: true, output, usedAI: true, healed: !opts.forceReplan, fromCache: false, plan: planResult.plan }
-  } catch (e: any) {
-    return { ok: false, error: 'La ejecución falló incluso tras re-planificar: ' + (e?.message || ''), usedAI: true, healed: true, fromCache: false, plan: planResult.plan }
+  } catch (e: unknown) {
+    return { ok: false, error: 'La ejecución falló incluso tras re-planificar: ' + ((e instanceof Error && e.message) || ''), usedAI: true, healed: true, fromCache: false, plan: planResult.plan }
   }
 }
 

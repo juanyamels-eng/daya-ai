@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": ["src/mcp-stdio.ts"],
+  "ignoreDependencies": ["pino-pretty", "web-tree-sitter"],
+  "vitest": {
+    "config": ["vitest.config.ts"]
+  }
+}

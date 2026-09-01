@@ -37,8 +37,8 @@ router.post('/match', async (req: Request, res: Response) => {
   if (!vj.valid) return res.status(400).json({ error: 'Oferta inválida', details: vj.errors })
   try {
     res.json(await matchResumeToJob(resume as Resume, job as JobPosting))
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'El match falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'El match falló.' })
   }
 })
 
@@ -81,8 +81,8 @@ router.post('/full', async (req: Request, res: Response) => {
       tailorChanges: tailor.changes,
       coverLetter: letter.ok ? letter.letter : undefined,
     })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'El pipeline falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'El pipeline falló.' })
   }
 })
 

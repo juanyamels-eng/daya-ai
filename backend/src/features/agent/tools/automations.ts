@@ -75,8 +75,8 @@ Elige bien las acciones del catálogo y rellena sus config con la info de la pet
       if ('error' in result) return `No pude crear la automatización: ${result.error}`
       const howOften = finalTrigger === 'schedule' ? ` cada ${finalInterval || 1440} min` : ` (trigger ${finalTrigger})`
       return `✓ Automatización creada: "${result.name}" [${result.id}]${howOften}. Pasos: ${steps.map(s => s.actionId).join(' → ')}.`
-    } catch (e: any) {
-      return `No pude crear la automatización: ${e?.message || e}. Verifica que la petición describa una tarea repetible con las piezas disponibles.`
+    } catch (e: unknown) {
+      return `No pude crear la automatización: ${(e instanceof Error && e.message) || String(e)}. Verifica que la petición describa una tarea repetible con las piezas disponibles.`
     }
   },
 }
@@ -125,8 +125,8 @@ export const manageAutomations: DayaTool = {
         results.push(`· "${r.name}": ${ok ? (enable ? 'activada' : 'pausada') : 'no se pudo cambiar'}`)
       }
       return results.join('\n')
-    } catch (e: any) {
-      return `Falló al gestionar automatizaciones: ${e?.message || e}`
+    } catch (e: unknown) {
+      return `Falló al gestionar automatizaciones: ${(e instanceof Error && e.message) || String(e)}`
     }
   },
 }

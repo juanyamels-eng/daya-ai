@@ -133,9 +133,9 @@ router.post('/run', heavyLimiter, async (req: Request, res: Response) => {
       totalDurationMs: result.totalDurationMs,
       totalCostUsd: result.totalCostUsd,
     })
-  } catch (e: any) {
+  } catch (e: unknown) {
     await devolverMensaje(userId)
-    console.error('[orchestrator] error:', e.message)
+    console.error('[orchestrator] error:', e instanceof Error ? e.message : String(e))
     res.status(500).json({ error: 'Orchestrator failed. Try again.' })
   }
 })

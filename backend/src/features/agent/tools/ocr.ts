@@ -37,8 +37,8 @@ export const ocr: DayaTool = {
       } finally {
         await worker.terminate().catch(() => {})
       }
-    } catch (e: any) {
-      return `El OCR falló: ${e?.message || e}`
+    } catch (e: unknown) {
+      return `El OCR falló: ${(e instanceof Error && e.message) || String(e)}`
     }
   },
 }

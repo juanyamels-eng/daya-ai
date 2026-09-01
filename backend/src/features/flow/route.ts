@@ -30,8 +30,8 @@ router.post('/start', async (req: Request, res: Response) => {
   try {
     const cp = await startRun(String(graph), userId, input || {}, { maxSteps: Number(maxSteps) || undefined })
     res.json(publicView(cp))
-  } catch (e: any) {
-    res.status(400).json({ error: e?.message || 'No se pudo iniciar el workflow.' })
+  } catch (e: unknown) {
+    res.status(400).json({ error: (e instanceof Error && e.message) || 'No se pudo iniciar el workflow.' })
   }
 })
 
@@ -41,8 +41,8 @@ router.post('/:runId/resume', async (req: Request, res: Response) => {
   try {
     const cp = await resumeRun(req.params.runId, userId, input, {})
     res.json(publicView(cp))
-  } catch (e: any) {
-    res.status(400).json({ error: e?.message || 'No se pudo reanudar.' })
+  } catch (e: unknown) {
+    res.status(400).json({ error: (e instanceof Error && e.message) || 'No se pudo reanudar.' })
   }
 })
 

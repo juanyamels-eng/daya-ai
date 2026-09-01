@@ -12,7 +12,7 @@
     "prepare": "husky",
     "changeset": "changeset",
     "version": "changeset version",
-    "knip": "knip"
+    "knip": "knip --directory backend && knip --directory frontend && knip --directory cli"
   },
   "lint-staged": {
     "backend/**/*.{ts,js}": [

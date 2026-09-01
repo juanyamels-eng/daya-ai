@@ -22,8 +22,8 @@ router.post('/navigate', async (req: Request, res: Response) => {
   try {
     const result = await executeBrowserAction({ type: 'navigate', url })
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 
@@ -32,8 +32,8 @@ router.get('/screenshot', async (_req: Request, res: Response) => {
   try {
     const result = await executeBrowserAction({ type: 'screenshot' })
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 
@@ -45,8 +45,8 @@ router.post('/action', async (req: Request, res: Response) => {
   try {
     const result = await executeBrowserAction({ type, url, selector, value, scrollDirection })
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 
@@ -58,8 +58,8 @@ router.post('/browse', async (req: Request, res: Response) => {
   try {
     const result = await autonomousBrowse(task, start_url, max_steps || 8)
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 
@@ -68,8 +68,8 @@ router.delete('/', async (_req: Request, res: Response) => {
   try {
     await closeBrowser()
     res.json({ success: true })
-  } catch (e: any) {
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 

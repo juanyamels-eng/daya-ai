@@ -1,16 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "ignore": [
+    "**/node_modules/**",
     "backend/dist/**",
     "frontend/.next/**",
-    "frontend/node_modules/**",
-    "backend/node_modules/**"
+    "frontend/storybook-static/**",
+    "frontend/test-results/**",
+    "frontend/playwright-report/**"
   ],
-  "ignoreDependencies": ["pino-pretty"],
-  "next": {
-    "entry": ["frontend/next.config.*"]
-  },
-  "vitest": {
-    "config": ["backend/vitest.config.ts"]
-  }
+  "ignoreDependencies": ["pino-pretty"]
 }

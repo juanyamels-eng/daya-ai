@@ -29,32 +29,32 @@ router.get('/deep', async (_req: Request, res: Response) => {
   try {
     await prisma.$queryRaw`SELECT 1`
     checks.database = { status: 'ok', latencyMs: Date.now() - dbStart }
-  } catch (e: any) {
-    checks.database = { status: 'error', details: e.message }
+  } catch (e: unknown) {
+    checks.database = { status: 'error', details: e instanceof Error ? e.message : String(e) }
   }
 
   // MCP servers
   try {
     const servers = listMcpServers()
     checks.mcp = { status: 'ok', details: { servers: servers.length, names: servers.map(s => s.name) } }
-  } catch (e: any) {
-    checks.mcp = { status: 'error', details: e.message }
+  } catch (e: unknown) {
+    checks.mcp = { status: 'error', details: e instanceof Error ? e.message : String(e) }
   }
 
   // Sandbox
   try {
     const sandbox = getSandboxProvider()
     checks.sandbox = { status: 'ok', details: { type: sandbox.constructor.name } }
-  } catch (e: any) {
-    checks.sandbox = { status: 'error', details: e.message }
+  } catch (e: unknown) {
+    checks.sandbox = { status: 'error', details: e instanceof Error ? e.message : String(e) }
   }
 
   // Tool cache
   try {
     const stats = getToolCacheStats()
     checks.cache = { status: 'ok', details: stats }
-  } catch (e: any) {
-    checks.cache = { status: 'error', details: e.message }
+  } catch (e: unknown) {
+    checks.cache = { status: 'error', details: e instanceof Error ? e.message : String(e) }
   }
 
   // Memory

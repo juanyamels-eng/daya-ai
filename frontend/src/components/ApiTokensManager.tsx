@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { tokensAPI } from '../lib/api'
 import { toast } from '../lib/toast'
+import { Button, Input } from '@/components/ui'
 import type { ApiToken } from '../types/api'
 
 export default function ApiTokensManager() {
@@ -38,18 +39,17 @@ export default function ApiTokensManager() {
           <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Tu nuevo token (cópialo ahora, no se volverá a mostrar)</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <code style={{ flex: 1, fontSize: '0.8rem', color: 'var(--text-primary)', background: 'var(--bg-base)', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-default)', overflow: 'auto', whiteSpace: 'nowrap' }}>{justCreated}</code>
-            <button onClick={() => copy(justCreated)} style={smallBtn}>Copiar</button>
-            <button onClick={() => setJustCreated(null)} style={smallBtn}>Listo</button>
+            <Button variant="secondary" size="sm" onClick={() => copy(justCreated)}>Copiar</Button>
+            <Button variant="secondary" size="sm" onClick={() => setJustCreated(null)}>Listo</Button>
           </div>
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del token (ej. Mi script)"
-          style={{ flex: 1, padding: '10px 13px', borderRadius: 10, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', fontFamily: 'var(--font-body)' }} />
-        <button onClick={create} disabled={creating} style={{ padding: '0 16px', borderRadius: 10, background: 'var(--accent-500)', color: 'white', border: 'none', cursor: 'pointer', fontSize: '0.84rem', fontWeight: 600, fontFamily: 'var(--font-body)', opacity: creating ? 0.6 : 1 }}>
+        <Input value={name} onChange={e => setName(e.target.value)} placeholder="Nombre del token (ej. Mi script)" className="flex-1" />
+        <Button onClick={create} disabled={creating}>
           {creating ? 'Creando…' : 'Crear token'}
-        </button>
+        </Button>
       </div>
 
       {tokens.length === 0 ? (
@@ -62,7 +62,7 @@ export default function ApiTokensManager() {
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t.name || 'Token'}</div>
                 <div style={{ fontSize: '0.74rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>{t.prefix}…··· · {t.lastUsedAt ? 'usado ' + new Date(t.lastUsedAt).toLocaleDateString('es-ES') : 'sin usar'}</div>
               </div>
-              <button onClick={() => revoke(t.id)} style={{ ...smallBtn, color: 'var(--red)', borderColor: 'rgba(239,68,68,0.25)' }}>Revocar</button>
+              <Button variant="danger" size="sm" onClick={() => revoke(t.id)}>Revocar</Button>
             </div>
           ))}
         </div>
@@ -71,7 +71,3 @@ export default function ApiTokensManager() {
   )
 }
 
-const smallBtn: React.CSSProperties = {
-  padding: '7px 13px', borderRadius: 9, background: 'transparent', border: '1px solid var(--border-default)',
-  cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', fontFamily: 'var(--font-body)', flexShrink: 0,
-}

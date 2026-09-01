@@ -53,17 +53,17 @@ router.post('/generate', requireAuth, async (req: any, res) => {
       })
 
       res.json({ video: { ...video, status: 'processing' }, requestId: result.requestId })
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Refund quota on failure
       await refundQuota(userId, 'video' as any)
       await db.generatedVideo.update({
         where: { id: video.id },
         data: { status: 'failed' },
       })
-      res.status(500).json({ error: err?.message || 'Error generando video' })
+      res.status(500).json({ error: (err instanceof Error && err.message) || 'Error generando video' })
     }
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Error del servidor' })
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err instanceof Error && err.message) || 'Error del servidor' })
   }
 })
 
@@ -102,8 +102,8 @@ router.get('/:id/status', requireAuth, async (req: any, res) => {
     } catch {}
 
     res.json({ status: video.status })
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Error' })
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err instanceof Error && err.message) || 'Error' })
   }
 })
 
@@ -118,8 +118,8 @@ router.get('/', requireAuth, async (req: any, res) => {
       take: 50,
     })
     res.json({ videos })
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Error' })
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err instanceof Error && err.message) || 'Error' })
   }
 })
 
@@ -132,8 +132,8 @@ router.delete('/:id', requireAuth, async (req: any, res) => {
       where: { id: req.params.id, userId: req.userId },
     })
     res.json({ ok: true })
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Error' })
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err instanceof Error && err.message) || 'Error' })
   }
 })
 

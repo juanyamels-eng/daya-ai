@@ -144,8 +144,8 @@ export async function tailorResume(resume: Resume, job: JobPosting): Promise<Tai
     )
     if (!parsed?.resume) return { ok: false, error: 'No se pudo adaptar el CV.' }
     return { ok: true, resume: parsed.resume as Resume, changes: toArr(parsed.changes) }
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'La adaptación falló.' }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'La adaptación falló.' }
   }
 }
 
@@ -170,8 +170,8 @@ export async function coverLetter(
       'Eres un coach de carrera que escribe cartas de presentación persuasivas pero honestas y específicas. No inventas datos del candidato.'
     )
     return { ok: true, letter }
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'No se pudo generar la carta.' }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'No se pudo generar la carta.' }
   }
 }
 

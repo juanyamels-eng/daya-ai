@@ -28,8 +28,8 @@ router.post('/', async (req: Request, res: Response) => {
       approximate: !!approximate,
     })
     res.json({ count: hits.length, hits })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La búsqueda híbrida falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'La búsqueda híbrida falló.' })
   }
 })
 
@@ -41,8 +41,8 @@ router.post('/rerank', (req: Request, res: Response) => {
     const idx = new BM25Index(items.map((i: any) => ({ id: String(i.id), text: String(i.text || '') })))
     const hits = idx.search(String(query), Number(topK) || 10)
     res.json({ count: hits.length, hits })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'El rerank falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'El rerank falló.' })
   }
 })
 

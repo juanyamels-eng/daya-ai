@@ -151,12 +151,12 @@ export class StateGraph<S extends Record<string, any>, C = any> {
         const step: StepTrace = { node: current, at: t0, durationMs: Date.now() - t0, patchKeys }
         trace.push(step)
         opts.onStep?.(step, state)
-      } catch (e: any) {
+      } catch (e: unknown) {
         // Una interrupción NO es un error: pausa el grafo para el humano.
         if (e instanceof Interrupt) {
           return { status: 'interrupted', state, trace, interrupt: { node: e.node, payload: e.payload }, nextNode: current }
         }
-        return { status: 'error', state, trace, error: e?.message || 'Fallo en un nodo', nextNode: current }
+        return { status: 'error', state, trace, error: (e instanceof Error && e.message) || 'Fallo en un nodo', nextNode: current }
       }
 
       current = await this.nextOf(current, state, ctx)

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "next": {
+    "entry": ["next.config.*"]
+  },
+  "ignoreDependencies": ["@storybook/react"],
+  "playwright": {
+    "config": ["playwright.config.ts"]
+  }
+}

@@ -19,8 +19,8 @@ router.post('/sync', async (req: Request, res: Response) => {
   try {
     const result = await syncUserGraph(userId)
     res.json({ success: true, ...result })
-  } catch (e: any) {
-    console.error('[graphrag] sync error:', e.message)
+  } catch (e: unknown) {
+    console.error('[graphrag] sync error:', e instanceof Error ? e.message : String(e))
     res.status(500).json({ error: 'Sync failed' })
   }
 })
@@ -42,8 +42,8 @@ router.post('/query', async (req: Request, res: Response) => {
       })),
       context,
     })
-  } catch (e: any) {
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 
@@ -54,8 +54,8 @@ router.delete('/', async (req: Request, res: Response) => {
   try {
     await deleteGraphData(userId, sourceId)
     res.json({ success: true })
-  } catch (e: any) {
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 

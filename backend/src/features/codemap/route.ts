@@ -34,8 +34,8 @@ router.post('/grep', async (req: Request, res: Response) => {
       childContext: childContext !== false,
     })
     res.json({ count: matches.length, matches })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'El grep estructural falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'El grep estructural falló.' })
   }
 })
 
@@ -44,8 +44,8 @@ router.post('/skeleton', async (req: Request, res: Response) => {
   if (!path || content == null) return res.status(400).json({ error: 'Faltan path y content.' })
   try {
     res.json(await codeSkeleton(String(path), String(content)))
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo extraer el esqueleto.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'No se pudo extraer el esqueleto.' })
   }
 })
 
@@ -55,8 +55,8 @@ router.post('/chunks', async (req: Request, res: Response) => {
   try {
     const chunks = await structuralChunks(String(path), String(content), Number(maxChunkLines) || 120)
     res.json({ count: chunks.length, chunks })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudieron generar los chunks.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'No se pudieron generar los chunks.' })
   }
 })
 

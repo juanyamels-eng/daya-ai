@@ -31,7 +31,7 @@ function builtinTools(): ActTool[] {
         try {
           const { ask } = await import('../oracle/oracleConnector')
           return await ask(args as any)
-        } catch (e: any) { return { error: e?.message || 'oracle no disponible' } }
+        } catch (e: unknown) { return { error: (e instanceof Error && e.message) || 'oracle no disponible' } }
       },
     },
     {
@@ -58,8 +58,8 @@ router.post('/extract', async (req: Request, res: Response) => {
       format, sourceKind, forceReplan: !!forceReplan,
     })
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La extracción falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'La extracción falló.' })
   }
 })
 
@@ -74,8 +74,8 @@ router.post('/act', async (req: Request, res: Response) => {
       forceReplan: !!forceReplan,
     })
     res.json(result)
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La acción falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'La acción falló.' })
   }
 })
 

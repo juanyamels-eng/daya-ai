@@ -71,6 +71,26 @@ a[style*="accent-500"] {
   color: #ffffff !important;
 }
 
+/* ============================================
+   Paleta "AI Studio" oscura — fuente única de verdad
+   ============================================
+   La landing (app/page.tsx), las pantallas de acceso (AuthChrome) y la página
+   de código (app/code) son superficies SIEMPRE oscuras: no siguen el tema claro/
+   oscuro de la app. Antes cada una definía estos mismos hex por su cuenta
+   (--lx-*, --lxa-*, --cx-*); ahora derivan de aquí para evitar la deriva.
+   Los nombres de cada superficie se conservan como alias, así que el
+   comportamiento dark-only no cambia. */
+:root {
+  --surface-dark-bg: #131314;
+  --surface-dark-card: #1e1e1f;
+  --surface-dark-card-hover: #282a2c;
+  --surface-dark-border: #444746;
+  --surface-dark-text: #e3e3e3;
+  --surface-dark-text-2: #c4c7c5;
+  --surface-dark-text-3: #9aa0a6;
+  --surface-dark-accent: #f1f3f4;
+}
+
 :root {
   /* Tipografía de producto (modo "gran empresa": Stripe, Linear, Vercel).
      El CUERPO y los TÍTULOS van en Inter (sans): la lectura prolongada y los

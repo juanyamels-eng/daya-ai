@@ -47,8 +47,8 @@ Write the final English image prompt now.`
       .trim()
     if (cleaned && cleaned.length >= 3) return res.json({ prompt: cleaned.slice(0, 700) })
     return res.json({ prompt: simple })
-  } catch (e: any) {
-    console.warn('[genimages/prompt] gemini-flash falló, uso fallback:', e?.message || e)
+  } catch (e: unknown) {
+    console.warn('[genimages/prompt] gemini-flash falló, uso fallback:', (e instanceof Error && e.message) || String(e))
     return res.json({ prompt: simple })
   }
 })
@@ -61,9 +61,9 @@ router.get('/', async (req, res) => {
       orderBy: { createdAt: 'desc' },
     })
     res.json(images)
-  } catch (e: any) {
-    console.error('[genimages GET] error al listar imágenes:', e?.message || e)
-    res.status(500).json({ error: e.message })
+  } catch (e: unknown) {
+    console.error('[genimages GET] error al listar imágenes:', (e instanceof Error && e.message) || String(e))
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 
@@ -127,13 +127,13 @@ router.post('/', async (req, res) => {
     await db.conversation.update({ where: { id: convId }, data: { updatedAt: new Date() } }).catch(() => {})
 
     res.status(201).json({ image, conversationId: convId, messageId: assistantMsg.id })
-  } catch (e: any) {
-    console.error('[genimages POST] error al guardar imagen:', e?.message || e)
+  } catch (e: unknown) {
+    console.error('[genimages POST] error al guardar imagen:', (e instanceof Error && e.message) || String(e))
     // Se consumió la cuota arriba pero la imagen no se llegó a guardar: devolverla
     // (si no, cada fallo —y cada reintento del frontend ante 5xx— descontaría una).
     const { refundQuota } = await import('../../services/quota')
     await refundQuota(userId, 'image')
-    res.status(500).json({ error: e.message })
+    res.status(500).json({ error: e instanceof Error ? e.message : String(e) })
   }
 })
 
@@ -142,7 +142,7 @@ router.delete('/:id', async (req, res) => {
   try {
     await db.generatedImage.deleteMany({ where: { id: req.params.id, userId: uid(req) } })
     res.json({ success: true })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 export default router

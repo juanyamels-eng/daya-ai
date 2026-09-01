@@ -30,14 +30,14 @@ export function AuthStyles() {
   return (
     <style dangerouslySetInnerHTML={{ __html: `
       .lxa {
-        --lxa-bg: #131314;
-        --lxa-text: #e3e3e3;
-        --lxa-text-2: #c4c7c5;
-        --lxa-text-3: #9aa0a6;
-        --lxa-accent: #f1f3f4;
-        --lxa-card: #1e1e1f;
-        --lxa-card-hover: #282a2c;
-        --lxa-border: #444746;
+        --lxa-bg: var(--surface-dark-bg);
+        --lxa-text: var(--surface-dark-text);
+        --lxa-text-2: var(--surface-dark-text-2);
+        --lxa-text-3: var(--surface-dark-text-3);
+        --lxa-accent: var(--surface-dark-accent);
+        --lxa-card: var(--surface-dark-card);
+        --lxa-card-hover: var(--surface-dark-card-hover);
+        --lxa-border: var(--surface-dark-border);
         --lxa-red: #f28b82;
         --lxa-green: #81c995;
         /* El LangSelector se pinta con las variables globales del tema; aquí se

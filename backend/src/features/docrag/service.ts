@@ -78,8 +78,8 @@ async function ensurePgVector(): Promise<boolean> {
           AND NOT EXISTS (SELECT 1 FROM ${VEC_TABLE} v WHERE v."chunkId" = c."id")
         ON CONFLICT ("chunkId") DO NOTHING`)
       return true
-    } catch (e: any) {
-      console.warn('[docrag] pgvector no disponible; usando búsqueda en memoria:', e?.message || e)
+    } catch (e: unknown) {
+      console.warn('[docrag] pgvector no disponible; usando búsqueda en memoria:', (e instanceof Error && e.message) || String(e))
       return false
     }
   })()
@@ -146,8 +146,8 @@ export async function retrieveRelevant(userId: string, query: string, k = 4): Pr
         return `\n\n${RAG_HEADER}\n${blocks}\n`
       }
       // Si pgvector no dio nada (p. ej. caché aún vacío), continúa al fallback.
-    } catch (e: any) {
-      console.warn('[docrag] búsqueda pgvector falló, usando memoria:', e?.message || e)
+    } catch (e: unknown) {
+      console.warn('[docrag] búsqueda pgvector falló, usando memoria:', (e instanceof Error && e.message) || String(e))
     }
   }
 

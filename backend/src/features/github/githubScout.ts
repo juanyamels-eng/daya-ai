@@ -85,8 +85,8 @@ export async function searchRepos(query: string, lang = '', limit = 8): Promise<
       topics: r.topics || [],
     }))
     return { ok: true, query, repos }
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'La búsqueda falló.', query, repos: [] }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'La búsqueda falló.', query, repos: [] }
   }
 }
 
@@ -108,8 +108,8 @@ export async function listFiles(fullName: string, maxFiles = 60): Promise<TreeRe
       .slice(0, maxFiles)
       .map((n: any) => ({ path: n.path, type: 'file' as const, size: n.size }))
     return { ok: true, files, defaultBranch: branch }
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'No se pudo leer el repositorio.', files: [] }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'No se pudo leer el repositorio.', files: [] }
   }
 }
 
@@ -131,8 +131,8 @@ export async function getFile(fullName: string, filePath: string, branch = ''): 
     let license: string | null = null
     try { const m = await ghFetch(`${GH_API}/repos/${fullName}`); license = m.license?.spdx_id || null } catch {}
     return { ok: true, path: filePath, content: buf, license }
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'No se pudo obtener el archivo.' }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'No se pudo obtener el archivo.' }
   }
 }
 
@@ -173,7 +173,7 @@ export async function adaptSnippet(
       notes: String(parsed?.notes || ''),
       licenseWarning,
     }
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'La adaptación falló.' }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'La adaptación falló.' }
   }
 }

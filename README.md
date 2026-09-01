@@ -12,10 +12,10 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-blue?logo=postgresql)](https://www.postgresql.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green?logo=node.js)](https://nodejs.org/)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](CONTRIBUTING.md)
-[![Join Community](https://img.shields.io/badge/Join-Community-5865F2)](https://github.com/GrupoSH/daya-ia/discussions)
+[![Join Community](https://img.shields.io/badge/Join-Community-5865F2)](https://github.com/juanyamels-eng/daya-ai/discussions)
 [![Website](https://img.shields.io/badge/Website-daya--ai.com-00a8e8)](https://daya-ai.com)
 
-**[🌐 Visit Website](https://daya-ai.com)** • **[📖 Documentation](https://docs.daya-ai.com)** • **[💬 Discussions](https://github.com/GrupoSH/daya-ia/discussions)** • **[🤝 Contributing](CONTRIBUTING.md)**
+**[🌐 Visit Website](https://daya-ai.com)** • **[📖 Documentation](https://docs.daya-ai.com)** • **[💬 Discussions](https://github.com/juanyamels-eng/daya-ai/discussions)** • **[🤝 Contributing](CONTRIBUTING.md)**
 
 </div>
 
@@ -278,7 +278,7 @@ daya-ai/
                      ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                   Backend (Express)                          │
-│  ┌─────���────────┬──────────────┬──────────────┬────────────┐ │
+│  ┌──────────────┬──────────────┬──────────────┬────────────┐ │
 │  │ Chat Engine  │ AI Router    │ Document RAG │ Payments   │ │
 │  │ (Streaming)  │(OpenRouter)  │(Embeddings)  │(PayPal)    │ │
 │  └──────────────┴──────────────┴──────────────┴────────────┘ │
@@ -347,8 +347,8 @@ We welcome contributions! Please see:
 ## 🐛 Issues & Feedback
 
 Found a bug? Want to suggest a feature?
-- **[GitHub Issues](https://github.com/kenii748k-cloud/daya-ai/issues)** — Report bugs and request features
-- **[Discussions](https://github.com/GrupoSH/daya-ia/discussions)** — Ask questions and share ideas
+- **[GitHub Issues](https://github.com/juanyamels-eng/daya-ai/issues)** — Report bugs and request features
+- **[Discussions](https://github.com/juanyamels-eng/daya-ai/discussions)** — Ask questions and share ideas
 
 ---
 

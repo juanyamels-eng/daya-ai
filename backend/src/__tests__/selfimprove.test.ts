@@ -81,7 +81,7 @@ describe('utilidades del agente', () => {
   it('las herramientas rechazan rutas fuera del repo', async () => {
     const tools = buildExecutorTools()
     const read = tools.find(t => t.name === 'read_file')!
-    const res = await read.run({ path: 'C:\\Windows\\system32' }, { cwd: 'C:\\repo\\backend', repoRoot: 'C:\\repo' }).catch((e: any) => String(e?.message || e))
+    const res = await read.run({ path: 'C:\\Windows\\system32' }, { cwd: 'C:\\repo\\backend', repoRoot: 'C:\\repo' }).catch((e: unknown) => String(e?.message || e))
     expect(String(res)).toMatch(/fuera del repo/)
   })
 

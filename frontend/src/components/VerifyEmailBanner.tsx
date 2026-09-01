@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useAuthStore } from '../store'
 import { userAPI } from '../lib/api'
 import { toast } from '../lib/toast'
+import { Button, IconButton } from '@/components/ui'
 
 // Aviso sutil para que el usuario confirme su correo (si aún no lo ha hecho).
 export default function VerifyEmailBanner() {
@@ -26,13 +27,13 @@ export default function VerifyEmailBanner() {
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
       <span style={{ flex: 1, minWidth: 0 }}>Confirma tu correo para asegurar tu cuenta. Te enviamos un enlace a <strong style={{ color: 'var(--text-primary)' }}>{user.email}</strong>.</span>
       {!sent && (
-        <button onClick={resend} disabled={sending} style={{ flexShrink: 0, padding: '6px 13px', borderRadius: 8, background: 'var(--accent-500)', color: 'white', border: 'none', cursor: sending ? 'wait' : 'pointer', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'var(--font-body)' }}>
+        <Button size="sm" onClick={resend} disabled={sending}>
           {sending ? 'Enviando…' : 'Reenviar'}
-        </button>
+        </Button>
       )}
-      <button onClick={() => setDismissed(true)} aria-label="Cerrar" style={{ flexShrink: 0, padding: 6, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex' }}>
+      <IconButton label="Cerrar" onClick={() => setDismissed(true)}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      </IconButton>
     </div>
   )
 }

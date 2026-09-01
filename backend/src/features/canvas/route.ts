@@ -83,8 +83,8 @@ Responde con JSON:`
       send({ delta })
     }
     if (!cancelled) send({ done: true, full })
-  } catch (e: any) {
-    send({ error: e?.message || 'Error del asistente IA.' })
+  } catch (e: unknown) {
+    send({ error: (e instanceof Error && e.message) || 'Error del asistente IA.' })
   }
   res.end()
 })
@@ -118,8 +118,8 @@ La paleta debe ser profesional, moderna y útil para diseño gráfico. Incluye v
       send({ delta })
     }
     if (!cancelled) send({ done: true, full })
-  } catch (e: any) {
-    send({ error: e?.message || 'Error al generar paleta.' })
+  } catch (e: unknown) {
+    send({ error: (e instanceof Error && e.message) || 'Error al generar paleta.' })
   }
   res.end()
 })
@@ -147,8 +147,8 @@ Dame: 1) descripción del diseño actual, 2) 3 sugerencias concretas de mejora, 
       send({ delta })
     }
     if (!cancelled) send({ done: true })
-  } catch (e: any) {
-    send({ error: e?.message || 'Error al describir.' })
+  } catch (e: unknown) {
+    send({ error: (e instanceof Error && e.message) || 'Error al describir.' })
   }
   res.end()
 })

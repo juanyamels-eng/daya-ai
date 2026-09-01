@@ -18,8 +18,8 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const n = Math.max(1, Math.min(Number(maxClaims) || 5, 8))
     res.json(await factCheck(String(text), n))
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'La verificación falló.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'La verificación falló.' })
   }
 })
 

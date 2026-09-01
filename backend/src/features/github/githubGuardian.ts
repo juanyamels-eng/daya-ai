@@ -34,8 +34,9 @@ async function git(repoPath: string, args: string[]): Promise<{ ok: boolean; out
       timeout: 60_000,
     })
     return { ok: true, out: stdout || '', err: stderr || '' }
-  } catch (e: any) {
-    return { ok: false, out: e?.stdout || '', err: e?.stderr || e?.message || 'git falló' }
+  } catch (e: unknown) {
+    const err = e as { stdout?: string; stderr?: string; message?: string }
+    return { ok: false, out: err?.stdout || '', err: err?.stderr || err?.message || 'git falló' }
   }
 }
 

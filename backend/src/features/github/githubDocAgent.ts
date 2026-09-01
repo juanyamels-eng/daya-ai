@@ -177,7 +177,7 @@ export async function generateReadme(
   const root = path.resolve(repoPath)
 
   let map: RepoMap
-  try { map = await walk(root) } catch (e: any) { return { ok: false, error: 'No se pudo leer el repositorio: ' + (e?.message || '') } }
+  try { map = await walk(root) } catch (e: unknown) { return { ok: false, error: 'No se pudo leer el repositorio: ' + ((e instanceof Error && e.message) || '') } }
   if (map.fileCount === 0) return { ok: false, error: 'No se encontraron archivos para documentar.' }
 
   const signals = await gatherSignals(root, map)
@@ -206,8 +206,8 @@ export async function generateReadme(
       8000
     )
     aiBody = String(parsed?.body || '').trim()
-  } catch (e: any) {
-    return { ok: false, error: 'La redacción con IA falló: ' + (e?.message || '') }
+  } catch (e: unknown) {
+    return { ok: false, error: 'La redacción con IA falló: ' + ((e instanceof Error && e.message) || '') }
   }
 
   // Encabezado con badges del stack + tabla de env vars garantizada (por si la IA la omite).
@@ -223,7 +223,7 @@ export async function generateReadme(
   if (opts.write) {
     const out = path.join(root, opts.fileName || 'README.generated.md')
     try { await writeFile(out, markdown, 'utf-8'); written = out }
-    catch (e: any) { return { ok: false, error: 'No se pudo escribir el archivo: ' + (e?.message || ''), markdown, signals } }
+    catch (e: unknown) { return { ok: false, error: 'No se pudo escribir el archivo: ' + ((e instanceof Error && e.message) || ''), markdown, signals } }
   }
 
   return { ok: true, markdown, signals, written }

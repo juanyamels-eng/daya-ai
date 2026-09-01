@@ -62,7 +62,7 @@ export function whatsappWebhook(req: Request, res: Response) {
 
   try {
     const body = JSON.parse(raw.toString('utf8'))
-    wa.processWebhook(body).catch((e: any) => console.warn('[whatsapp] proceso webhook error:', e instanceof Error ? e.message : e))
+    wa.processWebhook(body).catch((e: unknown) => console.warn('[whatsapp] proceso webhook error:', e instanceof Error ? e.message : e))
   } catch (e) {
     console.warn('[whatsapp] webhook JSON inválido:', e instanceof Error ? e.message : e)
   }

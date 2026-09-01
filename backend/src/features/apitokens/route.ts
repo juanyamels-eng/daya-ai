@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
       select: { id: true, name: true, prefix: true, lastUsedAt: true, createdAt: true },
     })
     res.json(tokens)
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 // Creates a new token and returns it ONCE
@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
     await db.apiToken.create({ data: { userId: uid(req), name: (name || 'Token').slice(0, 40), prefix, tokenHash } })
     // The full token is only shown now; it cannot be recovered later.
     res.status(201).json({ token: raw, prefix, name: name || 'Token' })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 // Revokes (deletes) a token
@@ -45,7 +45,7 @@ router.delete('/:id', async (req, res) => {
   try {
     await db.apiToken.deleteMany({ where: { id: req.params.id, userId: uid(req) } })
     res.json({ success: true })
-  } catch (e: any) { res.status(500).json({ error: e.message }) }
+  } catch (e: unknown) { res.status(500).json({ error: e instanceof Error ? e.message : String(e) }) }
 })
 
 export default router

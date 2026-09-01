@@ -41,8 +41,8 @@ router.post('/', async (req: Request, res: Response) => {
       a: { response: left.response, model: left.model, name: pretty(left.model as ModelKey) },
       b: { response: right.response, model: right.model, name: pretty(right.model as ModelKey) },
     })
-  } catch (e: any) {
-    res.status(500).json({ error: e?.message || 'No se pudo comparar.' })
+  } catch (e: unknown) {
+    res.status(500).json({ error: (e instanceof Error && e.message) || 'No se pudo comparar.' })
   }
 })
 

@@ -119,8 +119,8 @@ const generate: NodeFn<CragState, CragCtx> = async (state) => {
       'Eres DAYA, un asistente experto. Respondes en español, con precisión y sin inventar datos que no estén respaldados.'
     )
     return { answer }
-  } catch (e: any) {
-    return { answer: 'No se pudo generar la respuesta: ' + (e?.message || '') }
+  } catch (e: unknown) {
+    return { answer: 'No se pudo generar la respuesta: ' + ((e instanceof Error && e.message) || '') }
   }
 }
 

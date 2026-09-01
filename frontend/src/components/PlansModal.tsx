@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useAuthStore } from '../store'
 import type { AxiosError } from 'axios'
 import { paymentsAPI } from '../lib/api'
+import { Button, IconButton } from '@/components/ui'
 
 const PLANS = [
   { id: 'FREE', name: 'Gratis', price: 0, features: ['15 mensajes al día', '10 imágenes al día', '5 búsquedas web al día', '5 diseños en Studio al día', 'Modelos con selección automática'] },
@@ -59,9 +60,9 @@ export default function PlansModal({ onClose }: { onClose: () => void }) {
       <div style={{ width: '100%', maxWidth: 880, maxHeight: '88vh', overflowY: 'auto', background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: 20, boxShadow: 'var(--shadow-lg)', padding: 32, animation: 'modalPop 0.22s cubic-bezier(0.16,1,0.3,1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.03em', margin: 0 }}>Elige tu plan</h2>
-          <button onClick={onClose} aria-label="Cerrar" style={{ width: 36, height: 36, borderRadius: 9, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <IconButton label="Cerrar" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+          </IconButton>
         </div>
         <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', marginBottom: 28 }}>Mejora cuando quieras. Cancela cuando quieras.</p>
 
@@ -84,10 +85,13 @@ export default function PlansModal({ onClose }: { onClose: () => void }) {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => selectPlan(plan.id)} disabled={isCurrent || busy === plan.id}
-                  style={{ padding: '11px', borderRadius: 10, border: 'none', cursor: isCurrent || busy === plan.id ? 'default' : 'pointer', fontSize: '0.85rem', fontWeight: 600, fontFamily: 'var(--font-body)', background: isCurrent ? 'var(--bg-elevated)' : plan.popular ? 'var(--text-primary)' : 'transparent', color: isCurrent ? 'var(--text-tertiary)' : plan.popular ? 'var(--bg-base)' : 'var(--text-primary)', borderWidth: plan.popular || isCurrent ? 0 : 1.5, borderStyle: 'solid', borderColor: 'var(--border-default)', opacity: busy === plan.id ? 0.6 : 1 }}>
+                <Button
+                  onClick={() => selectPlan(plan.id)}
+                  disabled={isCurrent || busy === plan.id}
+                  variant={isCurrent ? 'ghost' : plan.popular ? 'primary' : 'secondary'}
+                >
                   {busy === plan.id ? 'Procesando…' : isCurrent ? 'Plan actual' : plan.price === 0 ? 'Gratis' : 'Elegir ' + plan.name}
-                </button>
+                </Button>
               </div>
             )
           })}

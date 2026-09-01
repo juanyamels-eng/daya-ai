@@ -134,10 +134,10 @@ router.post('/pipelines/:pipelineId/run', requireAuth, async (req: Request, res:
       })
 
       currentInput = typeof output === 'string' ? output : JSON.stringify(output)
-    } catch (err: any) {
-      log.error({ err: err.message, step: i + 1, agentId: agent.id }, 'Pipeline step failed')
+    } catch (err: unknown) {
+      log.error({ err: err instanceof Error ? err.message : String(err), step: i + 1, agentId: agent.id }, 'Pipeline step failed')
       return res.status(500).json({
-        error: `Step ${i + 1} failed: ${err.message}`,
+        error: `Step ${i + 1} failed: ${err instanceof Error ? err.message : String(err)}`,
         completedSteps: results,
         failedAt: i + 1,
       })

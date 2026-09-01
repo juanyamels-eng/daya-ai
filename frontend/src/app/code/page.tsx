@@ -122,13 +122,13 @@ export default function CodePage() {
         .cx-root {
           /* Misma paleta que la landing y las pantallas de acceso (#131314,
              no zinc): una sola voz visual en todo el producto. */
-          --cx-bg: #131314;
-          --cx-card-bg: #1e1e1f;
-          --cx-border: #444746;
-          --cx-text: #e3e3e3;
-          --cx-text-2: #c4c7c5;
-          --cx-text-3: #9aa0a6;
-          --cx-accent: #f1f3f4;
+          --cx-bg: var(--surface-dark-bg);
+          --cx-card-bg: var(--surface-dark-card);
+          --cx-border: var(--surface-dark-border);
+          --cx-text: var(--surface-dark-text);
+          --cx-text-2: var(--surface-dark-text-2);
+          --cx-text-3: var(--surface-dark-text-3);
+          --cx-accent: var(--surface-dark-accent);
           background: var(--cx-bg); color: var(--cx-text);
           font-family: var(--font-body, ui-sans-serif, system-ui, sans-serif);
           min-height: 100vh; display: flex; flex-direction: column;

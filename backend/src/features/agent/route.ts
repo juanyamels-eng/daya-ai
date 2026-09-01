@@ -124,9 +124,9 @@ router.post('/run', heavyLimiter, async (req: Request, res: Response) => {
         // Legacy flat-loop agent (default, backward compatible)
         result = await runAgent(userId, message, history)
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       await devolverMensaje(userId)
-      console.error('[agent] error:', e?.message || e)
+      console.error('[agent] error:', (e instanceof Error && e.message) || String(e))
       return res.status(500).json({ error: 'El agente no pudo completar la tarea. Intenta de nuevo.', conversationId: conversation.id })
     }
 
@@ -171,8 +171,8 @@ router.post('/run', heavyLimiter, async (req: Request, res: Response) => {
       conversationId: conversation.id,
       ...(title ? { title } : {}),
     })
-  } catch (e: any) {
-    console.error('[agent] error:', e?.message || e)
+  } catch (e: unknown) {
+    console.error('[agent] error:', (e instanceof Error && e.message) || String(e))
     res.status(500).json({ error: 'El agente no pudo completar la tarea. Intenta de nuevo.' })
   }
 })

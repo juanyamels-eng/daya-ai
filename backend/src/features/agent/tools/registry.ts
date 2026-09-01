@@ -84,10 +84,10 @@ export async function runTool(userId: string, name: string, args: any): Promise<
         recordToolUsage({ tool: name, userId, success: true, durationMs: 0, timestamp: Date.now() })
       } catch { /* best-effort */ }
       return result
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Fall through to error handling below
-      const message = `La herramienta «${name}» falló: ${e?.message || e}`
-      try { const { recordToolUsage } = await import('../../../services/analytics'); recordToolUsage({ tool: name, userId, success: false, durationMs: 0, timestamp: Date.now(), error: e.message }) } catch {}
+      const message = `La herramienta «${name}» falló: ${(e instanceof Error && e.message) || String(e)}`
+      try { const { recordToolUsage } = await import('../../../services/analytics'); recordToolUsage({ tool: name, userId, success: false, durationMs: 0, timestamp: Date.now(), error: e instanceof Error ? e.message : String(e) }) } catch {}
       try {
         const { reportIssue } = await import('../../selfimprove/issues')
         await reportIssue({ kind: 'tool_failure', title: `La herramienta «${name}» falla`, detail: message + '\nArgs: ' + JSON.stringify(args).slice(0, 500), signature: 'tool_failure:' + name })
@@ -102,9 +102,9 @@ export async function runTool(userId: string, name: string, args: any): Promise<
     const result = await tool.run(userId, args)
     try { const { recordToolUsage } = await import('../../../services/analytics'); recordToolUsage({ tool: name, userId, success: true, durationMs: Date.now() - start, timestamp: Date.now() }) } catch {}
     return result
-  } catch (e: any) {
-    const message = `La herramienta «${name}» falló: ${e?.message || e}`
-    try { const { recordToolUsage } = await import('../../../services/analytics'); recordToolUsage({ tool: name, userId, success: false, durationMs: Date.now() - start, timestamp: Date.now(), error: e.message }) } catch {}
+  } catch (e: unknown) {
+    const message = `La herramienta «${name}» falló: ${(e instanceof Error && e.message) || String(e)}`
+    try { const { recordToolUsage } = await import('../../../services/analytics'); recordToolUsage({ tool: name, userId, success: false, durationMs: Date.now() - start, timestamp: Date.now(), error: e instanceof Error ? e.message : String(e) }) } catch {}
     try {
       const { reportIssue } = await import('../../selfimprove/issues')
       await reportIssue({ kind: 'tool_failure', title: `La herramienta «${name}» falla`, detail: message + '\nArgs: ' + JSON.stringify(args).slice(0, 500), signature: 'tool_failure:' + name })

@@ -85,8 +85,8 @@ async function ensureSchema(): Promise<boolean> {
       } catch { /* hnsw may not be available */ }
 
       return true
-    } catch (e: any) {
-      console.warn('[graphrag] Schema init failed:', e.message)
+    } catch (e: unknown) {
+      console.warn('[graphrag] Schema init failed:', e instanceof Error ? e.message : String(e))
       return false
     }
   })()
@@ -271,8 +271,8 @@ export async function queryGraph(
     }
 
     return results.sort((a, b) => b.score - a.score).slice(0, topK)
-  } catch (e: any) {
-    console.warn('[graphrag] Query failed:', e.message)
+  } catch (e: unknown) {
+    console.warn('[graphrag] Query failed:', e instanceof Error ? e.message : String(e))
     return []
   }
 }

@@ -173,8 +173,8 @@ export async function transcribeAndAnalyze(
       if (!r.success || !r.text) return { success: false, error: r.error || 'No se pudo transcribir.' }
       transcript = r.text
       provider = 'API (Groq/OpenAI)'
-    } catch (e: any) {
-      return { success: false, error: 'Transcripción no disponible: ' + (e?.message || '') }
+    } catch (e: unknown) {
+      return { success: false, error: 'Transcripción no disponible: ' + ((e instanceof Error && e.message) || '') }
     }
   }
 

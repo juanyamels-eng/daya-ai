@@ -25,8 +25,8 @@ router.post('/analyze', async (req: any, res) => {
     const insights = await generateInsights(stats)
 
     res.json({ stats, charts, insights, preview: rows.slice(0, 20) })
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Error analizando datos' })
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err instanceof Error && err.message) || 'Error analizando datos' })
   }
 })
 
@@ -55,8 +55,8 @@ router.post('/chart', async (req: any, res) => {
         y: yData,
       },
     })
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message || 'Error' })
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err instanceof Error && err.message) || 'Error' })
   }
 })
 

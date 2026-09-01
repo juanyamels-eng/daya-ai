@@ -595,16 +595,16 @@ function LandingStyles() {
       .lx-root {
         /* Paleta neutra Google AI Studio (Material 3, oscuro): serio y minimalista.
            Sin degradados; separación por contraste #131314 / #1e1e1f / borde #444746. */
-        --lx-bg: #131314;
-        --lx-ink: #e3e3e3;
-        --lx-accent: #f1f3f4;
+        --lx-bg: var(--surface-dark-bg);
+        --lx-ink: var(--surface-dark-text);
+        --lx-accent: var(--surface-dark-accent);
         --lx-green: #9aa0a6;
-        --lx-text: #e3e3e3;
-        --lx-text-2: #c4c7c5;
-        --lx-text-3: #9aa0a6;
-        --lx-card: #1e1e1f;
-        --lx-card-hover: #282a2c;
-        --lx-border: #444746;
+        --lx-text: var(--surface-dark-text);
+        --lx-text-2: var(--surface-dark-text-2);
+        --lx-text-3: var(--surface-dark-text-3);
+        --lx-card: var(--surface-dark-card);
+        --lx-card-hover: var(--surface-dark-card-hover);
+        --lx-border: var(--surface-dark-border);
         --lx-grad: #ffffff;
         position: relative; min-height: 100dvh; overflow-x: hidden;
         display: flex; flex-direction: column;

@@ -158,8 +158,8 @@ export async function runRecipe(userId: string, recipe: Recipe, force = false): 
       const out = await action.run(cfg, ctx)
       Object.assign(bus, out)                            // el resultado entra al bus
       record.steps.push({ actionId: step.actionId, ok: true })
-    } catch (e: any) {
-      record.steps.push({ actionId: step.actionId, ok: false, error: e?.message || 'error' })
+    } catch (e: unknown) {
+      record.steps.push({ actionId: step.actionId, ok: false, error: (e instanceof Error && e.message) || 'error' })
       record.ok = false
       // No abortamos: las siguientes acciones pueden no depender de esta.
     }

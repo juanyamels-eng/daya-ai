@@ -108,12 +108,12 @@ export async function executeBrowserAction(action: BrowserAction): Promise<Brows
     }
 
     return { url: page.url(), title, screenshot, text }
-  } catch (e: any) {
+  } catch (e: unknown) {
     return {
       url: page.url(),
       title: '',
       text: '',
-      error: `Browser action "${action.type}" failed: ${e.message}`,
+      error: `Browser action "${action.type}" failed: ${e instanceof Error ? e.message : String(e)}`,
     }
   }
 }

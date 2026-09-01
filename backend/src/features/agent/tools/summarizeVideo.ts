@@ -52,9 +52,9 @@ export const summarizeVideo: DayaTool = {
       })
       const summary = (res.choices?.[0]?.message?.content || '').trim()
       return `Resumen del video (${url}):\n${summary}`
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Sin modelo disponible: entrega la transcripción cruda, mejor que nada.
-      return `No pude generar el resumen automático (${e?.message || e}). Transcripción del video:\n${transcript.slice(0, 4000)}`
+      return `No pude generar el resumen automático (${(e instanceof Error && e.message) || String(e)}). Transcripción del video:\n${transcript.slice(0, 4000)}`
     }
   },
 }

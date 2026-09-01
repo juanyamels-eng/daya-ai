@@ -48,8 +48,8 @@ export const speak: DayaTool = {
       writeFileSync(path.join(dir, id), buf)
       const base = process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : `http://localhost:${process.env.PORT || 4000}`
       return `Audio generado (inclúyelo EN TU RESPUESTA como un enlace de audio para el usuario): ${base}/audio/${id}`
-    } catch (e: any) {
-      return `La síntesis de voz falló: ${e?.message || e}`
+    } catch (e: unknown) {
+      return `La síntesis de voz falló: ${(e instanceof Error && e.message) || String(e)}`
     }
   },
 }

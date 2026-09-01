@@ -48,8 +48,8 @@ export async function structureResume(rawText: string): Promise<StructureResult<
     const v = validateResume(data)
     if (!v.valid) return { ok: false, errors: v.errors, data }
     return { ok: true, data }
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'No se pudo estructurar el CV.' }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'No se pudo estructurar el CV.' }
   }
 }
 
@@ -81,8 +81,8 @@ export async function structureJob(rawText: string): Promise<StructureResult<Job
     const v = validateJob(data)
     if (!v.valid) return { ok: false, errors: v.errors, data }
     return { ok: true, data }
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'No se pudo estructurar la oferta.' }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'No se pudo estructurar la oferta.' }
   }
 }
 
@@ -107,7 +107,7 @@ export async function structureJobFromUrl(url: string): Promise<StructureResult<
     }
     if (!text || text.length < 40) return { ok: false, error: 'No se obtuvo contenido útil de la URL.' }
     return structureJob(text.slice(0, 10000))
-  } catch (e: any) {
-    return { ok: false, error: e?.message || 'No se pudo procesar la URL.' }
+  } catch (e: unknown) {
+    return { ok: false, error: (e instanceof Error && e.message) || 'No se pudo procesar la URL.' }
   }
 }
