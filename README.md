@@ -1,4 +1,4 @@
-# 🤖 Daya-AI
+# daya-ai
 
 <div align="center">
 
